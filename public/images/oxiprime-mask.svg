@@ -1,0 +1,16 @@
+<svg width="900" height="1125" viewBox="0 0 900 1125" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1125" fill="#F8F1E8"/>
+  <circle cx="720" cy="225" r="175" fill="#6B4A36" opacity="0.1"/>
+  <circle cx="170" cy="895" r="175" fill="#D4B56A" opacity="0.28"/>
+  <path d="M230 822C342 736 558 736 670 822" stroke="#D4B56A" stroke-width="24" stroke-linecap="round" opacity="0.45"/>
+  <path d="M272 522H628V820C628 870 588 910 538 910H362C312 910 272 870 272 820V522Z" fill="#FFFDF8" stroke="#6B4A36" stroke-width="10"/>
+  <path d="M250 430H650C668 430 682 444 682 462V508C682 526 668 540 650 540H250C232 540 218 526 218 508V462C218 444 232 430 250 430Z" fill="#6B4A36"/>
+  <path d="M285 368H615C637 368 655 386 655 408V430H245V408C245 386 263 368 285 368Z" fill="#D4B56A"/>
+  <path d="M318 587H582V777H318V587Z" fill="#EFE2D0"/>
+  <text x="450" y="496" text-anchor="middle" font-family="Arial, sans-serif" font-size="45" font-weight="700" fill="#F7F0E7">OXIPRIME</text>
+  <text x="450" y="658" text-anchor="middle" font-family="Arial, sans-serif" font-size="50" font-weight="700" fill="#6B4A36">HAIR MASK</text>
+  <text x="450" y="710" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" fill="#9D7A45">Intensive Nutrition</text>
+  <path d="M360 798H540" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.24"/>
+  <path d="M400 831H500" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.17"/>
+  <text x="450" y="1000" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#6B4A36">Weekly care for dry, dull and split hair</text>
+</svg>

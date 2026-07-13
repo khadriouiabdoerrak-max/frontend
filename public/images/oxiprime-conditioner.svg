@@ -1,0 +1,18 @@
+<svg width="900" height="1125" viewBox="0 0 900 1125" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1125" fill="#F5EBDD"/>
+  <circle cx="190" cy="205" r="155" fill="#D4B56A" opacity="0.26"/>
+  <circle cx="720" cy="910" r="205" fill="#6B4A36" opacity="0.09"/>
+  <path d="M244 865C338 785 547 785 656 865" stroke="#6B4A36" stroke-width="22" stroke-linecap="round" opacity="0.16"/>
+  <path d="M310 345H590C612 345 630 363 630 385V825C630 867 596 901 554 901H346C304 901 270 867 270 825V385C270 363 288 345 310 345Z" fill="#FFFDF8" stroke="#6B4A36" stroke-width="10"/>
+  <path d="M352 255H548V345H352V255Z" fill="#D4B56A"/>
+  <path d="M372 205H528C541 205 552 216 552 229V255H348V229C348 216 359 205 372 205Z" fill="#6B4A36"/>
+  <path d="M315 454H585V741H315V454Z" fill="#F1DAB4"/>
+  <path d="M315 454H585V522H315V454Z" fill="#D4B56A"/>
+  <text x="450" y="501" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#6B4A36">OXIPRIME</text>
+  <text x="450" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="41" font-weight="700" fill="#6B4A36">CONDITIONER</text>
+  <text x="450" y="641" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" fill="#9D7A45">Softness &amp; Hydration</text>
+  <path d="M366 690C416 725 486 725 534 690" stroke="#6B4A36" stroke-width="10" stroke-linecap="round" opacity="0.34"/>
+  <path d="M365 787H535" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.24"/>
+  <path d="M404 820H496" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.17"/>
+  <text x="450" y="1000" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#6B4A36">Hydrates, softens and helps detangle hair</text>
+</svg>

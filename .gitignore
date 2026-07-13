@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+.next-live/
+.next-preview/
+out/
+.turbo/
+
+# Logs
+build-output.txt
+dev-output.txt
+
+# Env
+.env
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+node-installer.msi
+tsconfig.tsbuildinfo

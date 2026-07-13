@@ -1,0 +1,18 @@
+<svg width="900" height="1125" viewBox="0 0 900 1125" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1125" fill="#F7F0E7"/>
+  <circle cx="705" cy="205" r="150" fill="#E4C784" opacity="0.35"/>
+  <circle cx="170" cy="920" r="190" fill="#6B4A36" opacity="0.08"/>
+  <path d="M250 863C361 776 536 796 661 858" stroke="#D4B56A" stroke-width="24" stroke-linecap="round" opacity="0.45"/>
+  <path d="M319 325H581C609 325 632 348 632 376V822C632 862 600 895 560 895H340C300 895 268 862 268 822V376C268 348 291 325 319 325Z" fill="#FDFBF7" stroke="#6B4A36" stroke-width="10"/>
+  <path d="M350 235H550V325H350V235Z" fill="#6B4A36"/>
+  <path d="M380 190H520C536 190 549 203 549 219V235H351V219C351 203 364 190 380 190Z" fill="#3B251C"/>
+  <path d="M315 430H585V735H315V430Z" fill="#EFE2D0"/>
+  <path d="M315 430H585V506H315V430Z" fill="#6B4A36"/>
+  <text x="450" y="478" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#F7F0E7">OXIPRIME</text>
+  <text x="450" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="46" font-weight="700" fill="#6B4A36">SHAMPOO</text>
+  <text x="450" y="626" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" fill="#9D7A45">Repair Hair</text>
+  <path d="M385 683C425 655 476 655 515 683" stroke="#D4B56A" stroke-width="11" stroke-linecap="round"/>
+  <path d="M363 778H537" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.25"/>
+  <path d="M394 811H506" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.18"/>
+  <text x="450" y="1000" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#6B4A36">Gentle cleansing for dry, damaged hair</text>
+</svg>

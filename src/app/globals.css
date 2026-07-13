@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Tajawal:wght@300;400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F8F1E7;
+  --foreground: #1F1712;
+  --font-inter: "Inter";
+  --font-tajawal: "Tajawal";
+  --font-ibm-plex-arabic: "IBM Plex Sans Arabic";
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F8F1E7;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8B98C;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C99A4A;
+}
+
+/* RTL defaults */
+html {
+  direction: rtl;
+}

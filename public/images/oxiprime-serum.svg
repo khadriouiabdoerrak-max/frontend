@@ -1,0 +1,20 @@
+<svg width="900" height="1125" viewBox="0 0 900 1125" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1125" fill="#F6EFE5"/>
+  <circle cx="704" cy="218" r="160" fill="#D4B56A" opacity="0.32"/>
+  <circle cx="178" cy="884" r="180" fill="#6B4A36" opacity="0.09"/>
+  <path d="M276 850C384 775 524 775 624 850" stroke="#6B4A36" stroke-width="22" stroke-linecap="round" opacity="0.16"/>
+  <path d="M388 330H512C536 330 556 350 556 374V838C556 876 526 906 488 906H412C374 906 344 876 344 838V374C344 350 364 330 388 330Z" fill="#FFFDF8" stroke="#6B4A36" stroke-width="10"/>
+  <path d="M397 248H503V330H397V248Z" fill="#6B4A36"/>
+  <path d="M413 197H487C503 197 516 210 516 226V248H384V226C384 210 397 197 413 197Z" fill="#3B251C"/>
+  <path d="M390 405H510V745H390V405Z" fill="#F1DAB4"/>
+  <path d="M390 405H510V478H390V405Z" fill="#D4B56A"/>
+  <text x="450" y="452" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#6B4A36">OXIPRIME</text>
+  <text x="450" y="568" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#6B4A36">SERUM</text>
+  <text x="450" y="615" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" fill="#9D7A45">Keratin + Oils</text>
+  <path d="M421 682C441 665 459 665 479 682" stroke="#6B4A36" stroke-width="9" stroke-linecap="round" opacity="0.35"/>
+  <path d="M390 790H510" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.24"/>
+  <path d="M415 823H485" stroke="#6B4A36" stroke-width="8" stroke-linecap="round" opacity="0.17"/>
+  <path d="M572 318C604 336 625 370 625 409" stroke="#D4B56A" stroke-width="14" stroke-linecap="round" opacity="0.65"/>
+  <path d="M596 290C646 319 678 371 678 431" stroke="#D4B56A" stroke-width="10" stroke-linecap="round" opacity="0.4"/>
+  <text x="450" y="1000" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#6B4A36">Heat protection, shine and frizz control</text>
+</svg>
