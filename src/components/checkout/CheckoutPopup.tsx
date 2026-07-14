@@ -111,26 +111,23 @@ export function CheckoutPopup({
     }
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1/orders`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer: {
-              full_name: formData.fullName.trim(),
-              phone: normalizedPhone,
-              city: formData.city,
-              address: formData.address.trim(),
-            },
-            items: items.map((item) => ({
-              product_slug: item.slug,
-              quantity: item.quantity,
-            })),
-            source: 'website',
-          }),
-        },
-      );
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: {
+            full_name: formData.fullName.trim(),
+            phone: normalizedPhone,
+            city: formData.city,
+            address: formData.address.trim(),
+          },
+          items: items.map((item) => ({
+            product_slug: item.slug,
+            quantity: item.quantity,
+          })),
+          source: 'website',
+        }),
+      });
 
       const data = await response.json();
 
