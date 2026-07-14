@@ -43,6 +43,7 @@ jobs:
             NEXT_PUBLIC_SNAPCHAT_PIXEL_ID=
 
       - name: Make container image public
+        continue-on-error: true
         run: gh api --method POST /user/packages/container/frontend/visibility -f visibility=public
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
