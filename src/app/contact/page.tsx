@@ -20,19 +20,16 @@ export default function ContactPage() {
     setError('');
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/v1/contact`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: formData.fullName,
-            phone: formData.phone,
-            city: formData.city,
-            message: formData.message,
-          }),
-        },
-      );
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: formData.fullName,
+          phone: formData.phone,
+          city: formData.city,
+          message: formData.message,
+        }),
+      });
       if (!res.ok) throw new Error('FAILED');
       setSubmitted(true);
     } catch {
