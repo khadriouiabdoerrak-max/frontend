@@ -8,6 +8,8 @@ on:
 permissions:
   contents: read
   packages: write
+  attestations: write
+  id-token: write
 
 jobs:
   build-and-push:
@@ -39,3 +41,8 @@ jobs:
             NEXT_PUBLIC_META_PIXEL_ID=
             NEXT_PUBLIC_TIKTOK_PIXEL_ID=
             NEXT_PUBLIC_SNAPCHAT_PIXEL_ID=
+
+      - name: Make container image public
+        run: gh api --method POST /user/packages/container/frontend/visibility -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
