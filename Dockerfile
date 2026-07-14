@@ -1,3 +1,4 @@
+# EasyPanel production image for the Next.js frontend app.
 # Stage 1: deps
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
