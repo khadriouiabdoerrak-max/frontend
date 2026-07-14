@@ -1,7 +1,7 @@
 # One-click EasyPanel deploy trigger
 # Double-click this file or run: powershell -ExecutionPolicy Bypass -File deploy.ps1
 
-$deployUrl = "http://187.124.46.250:3000/api/deploy/2e9f25dc39b576ab8c7aa633ce5018fc53bbe42a2c81fb9d"
+$deployUrl = "http://187.124.46.250:3000/api/deploy/2c96c24d31693f02a63dac28e2b47ef00631a8115cfe9758"
 
 Write-Host "Kayn deploy l EasyPanel..." -ForegroundColor Cyan
 
