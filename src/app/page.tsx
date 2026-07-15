@@ -58,7 +58,7 @@ export default function Home() {
             className="relative block overflow-hidden rounded-card border border-champagne/40 bg-ivory shadow-card"
             aria-label="شوفي روتين OXIPRIME الكامل"
           >
-            <div className="relative min-h-[220px] sm:min-h-[300px] w-full bg-gradient-to-b from-champagne/30 to-ivory flex items-center justify-center gap-3 p-6 sm:hidden">
+            <div className="relative min-h-[220px] sm:min-h-[280px] w-full bg-gradient-to-b from-champagne/30 to-ivory flex items-center justify-center gap-3 p-6">
               {products.map((product) => (
                 <Image
                   key={product.id}
@@ -66,20 +66,9 @@ export default function Home() {
                   alt=""
                   width={56}
                   height={80}
-                  className="h-16 w-auto object-contain"
+                  className="h-14 sm:h-16 w-auto object-contain"
                 />
               ))}
-            </div>
-            <div className="relative hidden sm:block min-h-[300px] w-full">
-              <Image
-                src="/images/oxiprime-hair-lifestyle-hero.png"
-                alt="شعر ناعم ولامع مع منتجات OXIPRIME"
-                fill
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-                quality={60}
-                className="object-cover"
-              />
             </div>
             <div className="absolute inset-x-4 bottom-4 rounded-card bg-cocoa/90 p-3 text-center text-ivory">
               <p className="text-sm font-bold">شوفي الباك الكامل</p>

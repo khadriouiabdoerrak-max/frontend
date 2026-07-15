@@ -1,70 +1,49 @@
-'use client';
-
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star } from 'lucide-react';
-import { useCartStore } from '@/lib/store';
+import { AddToCartButton } from '@/components/cart/AddToCartButton';
+import { StarRating } from '@/components/home/StarRating';
 import { products, bundleProduct, getListImage } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
 
+const bundleCartItem = {
+  id: bundleProduct.id,
+  slug: bundleProduct.slug,
+  nameAr: bundleProduct.nameAr,
+  price: bundleProduct.price,
+  compareAtPrice: bundleProduct.compareAtPrice,
+  isBundle: true as const,
+};
+
 export default function CollectionPage() {
-  const { addItem } = useCartStore();
-
-  const addBundle = () => {
-    addItem({
-      id: bundleProduct.id,
-      slug: bundleProduct.slug,
-      nameAr: bundleProduct.nameAr,
-      price: bundleProduct.price,
-      compareAtPrice: bundleProduct.compareAtPrice,
-      isBundle: true,
-    });
-  };
-
   return (
     <div className="bg-background pt-16 pb-24">
-      <section className="px-6 py-16">
+      <section className="px-4 py-12">
         <div className="container mx-auto max-w-5xl">
-          <div className="text-center max-w-2xl mx-auto mb-12 animate-fade-up">
-            <h1 className="text-3xl sm:text-5xl font-bold text-cocoa mb-4">
-              مجموعة OXIPRIME للعناية بالشعر
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <h1 className="text-3xl sm:text-4xl font-bold text-cocoa mb-3">
+              مجموعة OXIPRIME
             </h1>
-            <p className="text-secondary leading-relaxed">
-              اختاري المنتج المناسب لكِ أو ابدئي بالروتين الكامل للحصول على
-              تجربة عناية متكاملة وثمن أفضل.
+            <p className="text-secondary text-sm leading-relaxed">
+              اختاري منتج واحد أو الروتين الكامل بثمن أفضل.
             </p>
           </div>
 
-          <div className="bg-ivory border border-gold/40 rounded-card p-6 sm:p-8 mb-10 text-center shadow-card animate-fade-up">
-            <span className="inline-block bg-gold/10 text-gold text-xs font-bold px-3 py-1 rounded-badge mb-3">
-              الأكثر توفيرا
-            </span>
-            <h2 className="text-2xl font-bold text-cocoa mb-2">
+          <div className="bg-ivory border border-gold/40 rounded-card p-6 mb-8 text-center">
+            <h2 className="text-xl font-bold text-cocoa mb-2">
               {bundleProduct.nameAr}
             </h2>
-            <p className="text-sm text-muted-brown max-w-xl mx-auto mb-5">
-              شامبو + بلسم + ماسك + سيروم كيراتين في باك واحد.
+            <p className="text-2xl font-bold text-cocoa mb-4">
+              {formatPrice(bundleProduct.price)}
             </p>
-            <div className="flex items-center justify-center gap-4 mb-5">
-              <span className="text-3xl font-bold text-cocoa">
-                {formatPrice(bundleProduct.price)}
-              </span>
-              <span className="text-lg line-through text-muted-brown">
-                {formatPrice(bundleProduct.compareAtPrice!)}
-              </span>
-              <span className="text-sm text-success font-bold">
-                توفيري 197 درهم
-              </span>
-            </div>
-            <button
-              onClick={addBundle}
-              className="bg-cocoa text-ivory px-8 py-4 rounded-btn font-bold hover:bg-espresso transition-colors"
+            <AddToCartButton
+              product={bundleCartItem}
+              className="bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn"
             >
-              أضيفي الروتين الكامل للسلة
-            </button>
+              أضيفي الروتين الكامل
+            </AddToCartButton>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {products.map((product) => (
               <div
                 key={product.id}
@@ -72,72 +51,39 @@ export default function CollectionPage() {
               >
                 <Link
                   href={`/products/${product.slug}`}
-                  className="block aspect-[4/5] bg-gradient-to-b from-background to-champagne/20 overflow-hidden relative"
+                  className="block aspect-[4/5] relative p-4 bg-gradient-to-b from-background to-champagne/20"
                 >
                   <Image
                     src={getListImage(product)}
                     alt={product.nameAr}
                     fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      className="object-contain p-3"
+                    sizes="(max-width: 640px) 50vw, 25vw"
                     loading="lazy"
-                    quality={70}
+                    className="object-contain p-3"
                   />
                 </Link>
-                <div className="p-4 flex flex-col gap-3 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-gold bg-gold/10 px-2 py-1 rounded-badge">
-                      {product.stepLabel}
-                    </span>
-                    <span className="text-[11px] text-muted-brown font-sans">
-                      خطوة {product.step}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, index) => (
-                      <Star
-                        key={index}
-                        className={`w-3.5 h-3.5 ${
-                          index < Math.floor(product.rating)
-                            ? 'text-gold fill-gold'
-                            : 'text-champagne'
-                        }`}
-                      />
-                    ))}
-                    <span className="text-xs text-muted-brown mr-1">
-                      {product.rating}
-                    </span>
-                  </div>
+                <div className="p-3 flex flex-col gap-2 flex-1">
+                  <StarRating rating={product.rating} />
                   <Link href={`/products/${product.slug}`}>
-                    <h2 className="font-bold text-cocoa text-sm leading-snug hover:text-gold transition-colors">
+                    <h2 className="font-bold text-xs text-cocoa leading-snug">
                       {product.nameAr}
                     </h2>
                   </Link>
-                  <p className="text-xs text-muted-brown leading-relaxed flex-1">
-                    {product.shortDescriptionAr}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-cocoa">
-                      {formatPrice(product.price)}
-                    </span>
-                    <span className="text-xs text-success">
-                      دفع عند الاستلام
-                    </span>
-                  </div>
-                  <button
-                    onClick={() =>
-                      addItem({
-                        id: product.id,
-                        slug: product.slug,
-                        nameAr: product.nameAr,
-                        price: product.price,
-                        isBundle: product.isBundle,
-                      })
-                    }
-                    className="w-full bg-cocoa text-ivory py-3 rounded-btn text-sm font-bold hover:bg-espresso transition-colors"
+                  <span className="font-bold text-sm text-cocoa">
+                    {formatPrice(product.price)}
+                  </span>
+                  <AddToCartButton
+                    product={{
+                      id: product.id,
+                      slug: product.slug,
+                      nameAr: product.nameAr,
+                      price: product.price,
+                      isBundle: false,
+                    }}
+                    className="w-full bg-cocoa text-ivory py-2.5 text-xs font-bold rounded-btn mt-auto"
                   >
                     أضيفي للسلة
-                  </button>
+                  </AddToCartButton>
                 </div>
               </div>
             ))}

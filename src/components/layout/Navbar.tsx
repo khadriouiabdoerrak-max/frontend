@@ -1,9 +1,35 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingBag, Menu, X } from 'lucide-react';
 import { useCartStore } from '@/lib/store';
 import { useEffect, useState } from 'react';
+
+function IconBag({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M6 6h15l-1.5 9h-12z" />
+      <path d="M6 6l-1-3H2" />
+      <circle cx="9" cy="20" r="1" />
+      <circle cx="18" cy="20" r="1" />
+    </svg>
+  );
+}
+
+function IconMenu({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+function IconX({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
 
 export function Navbar() {
   const { openCart, items } = useCartStore();
@@ -89,7 +115,7 @@ export function Navbar() {
                 سلة التسوق
               </span>
               <div className="relative">
-                <ShoppingBag className="w-5 h-5 text-cocoa" />
+                <IconBag className="w-5 h-5 text-cocoa" />
                 {itemCount > 0 && (
                   <span className="absolute -top-1.5 -left-1.5 bg-gold text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
                     {itemCount}
@@ -105,9 +131,9 @@ export function Navbar() {
               aria-label="القائمة"
             >
               {menuOpen ? (
-                <X className="w-5 h-5 text-cocoa" />
+                <IconX className="w-5 h-5 text-cocoa" />
               ) : (
-                <Menu className="w-5 h-5 text-cocoa" />
+                <IconMenu className="w-5 h-5 text-cocoa" />
               )}
             </button>
           </div>

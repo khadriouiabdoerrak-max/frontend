@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { trackAddToCart } from './tracking';
 
 export interface CartProduct {
   id: string;
@@ -55,12 +54,14 @@ export const useCartStore = create<CartStore>()(
             isOpen: true,
           };
         });
-        trackAddToCart({
-          content_ids: [product.id],
-          content_name: product.nameAr,
-          value: product.price,
-          currency: 'MAD',
-        });
+        void import('./tracking').then(({ trackAddToCart }) =>
+          trackAddToCart({
+            content_ids: [product.id],
+            content_name: product.nameAr,
+            value: product.price,
+            currency: 'MAD',
+          }),
+        );
       },
 
       removeItem: (productId) => {

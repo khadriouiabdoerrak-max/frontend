@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { arabicFont } from "@/lib/fonts";
-import { CartProvider } from "@/components/cart/CartProvider";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
-import { TrackingScripts } from "@/components/tracking/TrackingScripts";
+import dynamic from 'next/dynamic';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
+import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
+
+const CartProvider = dynamic(
+  () =>
+    import('@/components/cart/CartProvider').then((mod) => mod.CartProvider),
+  { ssr: false },
+);
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -51,7 +56,6 @@ export default function RootLayout({
         className={`${arabicFont.variable} font-arabic antialiased bg-background text-primary min-h-screen flex flex-col`}
       >
         <CartProvider>
-          <TrackingScripts />
           <AnnouncementBar />
           <Navbar />
           <main className="flex-grow">{children}</main>
