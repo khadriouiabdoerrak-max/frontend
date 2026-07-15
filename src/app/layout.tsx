@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { arabicFont } from "@/lib/fonts";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -46,7 +47,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className="font-arabic antialiased bg-background text-primary min-h-screen flex flex-col">
+      <body
+        className={`${arabicFont.variable} font-arabic antialiased bg-background text-primary min-h-screen flex flex-col`}
+      >
         <CartProvider>
           <TrackingScripts />
           <AnnouncementBar />

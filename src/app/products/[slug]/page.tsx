@@ -1,6 +1,12 @@
 import type { Metadata } from 'next';
-import { ProductPageClient } from './ProductPageClient';
+import dynamic from 'next/dynamic';
 import { getProductBySlug, allProducts } from '@/lib/products';
+
+const ProductPageClient = dynamic(
+  () =>
+    import('./ProductPageClient').then((mod) => mod.ProductPageClient),
+  { loading: () => <div className="min-h-screen bg-background" /> },
+);
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;

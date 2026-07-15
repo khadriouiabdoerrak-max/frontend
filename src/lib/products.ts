@@ -246,6 +246,18 @@ export function getProductBySlug(slug: string): Product | undefined {
   return allProducts.find((p) => p.slug === slug);
 }
 
+const listImages: Record<string, string> = {
+  'repair-hair-shampoo': '/images/oxiprime-shampoo.svg',
+  'repair-hair-conditioner': '/images/oxiprime-conditioner.svg',
+  'deep-conditioning-repair-mask': '/images/oxiprime-mask.svg',
+  'thermal-keratin-hair-serum': '/images/oxiprime-serum.svg',
+  'complete-hair-repair-kit': '/images/oxiprime-shampoo.svg',
+};
+
+export function getListImage(product: Product): string {
+  return listImages[product.slug] ?? product.image ?? '/images/oxiprime-shampoo.svg';
+}
+
 export function getStarsDisplay(rating: number): string {
   return "★".repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? "½" : "");
 }

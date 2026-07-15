@@ -1,11 +1,17 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useCartStore } from '@/lib/store';
 import { ShoppingBag, X, Plus, Minus, ShieldCheck, Phone, Star } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { useEffect, useState } from 'react';
-import { CheckoutPopup } from '@/components/checkout/CheckoutPopup';
 import { bundleProduct } from '@/lib/products';
+
+const CheckoutPopup = dynamic(
+  () =>
+    import('@/components/checkout/CheckoutPopup').then((mod) => mod.CheckoutPopup),
+  { ssr: false },
+);
 
 function CartUpsell({
   individualCount,

@@ -14,11 +14,13 @@ export function Navbar() {
   useEffect(() => {
     setMounted(true);
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const itemCount = mounted
+    ? items.reduce((total, item) => total + item.quantity, 0)
+    : 0;
 
   const navLinks = [
     { href: '/', label: 'الرئيسية' },
@@ -30,10 +32,10 @@ export function Navbar() {
   return (
     <>
       <header
-        className={`sticky top-0 w-full z-40 transition-all duration-300 ${
+        className={`sticky top-0 w-full z-40 ${
           isScrolled
-            ? 'bg-ivory/95 backdrop-blur-md shadow-sm py-3'
-            : 'bg-ivory py-4'
+            ? 'bg-ivory shadow-sm py-2.5'
+            : 'bg-ivory py-3'
         }`}
       >
         <div className="container mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -88,7 +90,7 @@ export function Navbar() {
               </span>
               <div className="relative">
                 <ShoppingBag className="w-5 h-5 text-cocoa" />
-                {mounted && itemCount > 0 && (
+                {itemCount > 0 && (
                   <span className="absolute -top-1.5 -left-1.5 bg-gold text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
                     {itemCount}
                   </span>

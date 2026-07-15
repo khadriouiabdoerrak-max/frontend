@@ -14,7 +14,6 @@ import {
   Truck,
 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 import { getProductBySlug, products, bundleProduct, type Product } from '@/lib/products';
 
 const bundleFaqs = [
@@ -62,10 +61,7 @@ function BundleProductPage({
 
       <section className="px-6 py-10 sm:py-14 bg-gradient-to-b from-[#EFE5D6] to-background">
         <div className="container mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7 }}
+          <div
             className="space-y-4"
           >
             <div className="relative overflow-hidden rounded-card border border-champagne/40 bg-ivory shadow-card">
@@ -84,12 +80,9 @@ function BundleProductPage({
                 </p>
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
+          <div
             className="space-y-6"
           >
             <span className="inline-block bg-gold/15 text-gold text-xs font-bold px-3 py-1 rounded-badge">
@@ -163,7 +156,7 @@ function BundleProductPage({
                 <span>توصيل داخل المغرب</span>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -554,10 +547,7 @@ export function ProductPageClient({ slug }: { slug: string }) {
 
           {/* Product Image */}
           <div className="w-full lg:w-5/12">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7 }}
+            <div
               className="aspect-[4/5] bg-ivory rounded-card border border-champagne/30 overflow-hidden sticky top-24 shadow-card"
             >
               <img
@@ -565,7 +555,7 @@ export function ProductPageClient({ slug }: { slug: string }) {
                 alt={product.nameAr}
                 className="h-full w-full object-cover"
               />
-            </motion.div>
+            </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[product.usageImage, product.resultImage]
                 .filter(Boolean)
@@ -590,10 +580,7 @@ export function ProductPageClient({ slug }: { slug: string }) {
 
           {/* Product Info */}
           <div className="w-full lg:w-7/12">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1 }}
+            <div
               className="space-y-6"
             >
               {/* Step badge */}
@@ -726,25 +713,19 @@ export function ProductPageClient({ slug }: { slug: string }) {
                         className={`w-4 h-4 text-gold transition-transform duration-300 ${openAccordion === i ? 'rotate-180' : ''}`}
                       />
                     </button>
-                    <AnimatePresence>
-                      {openAccordion === i && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25 }}
+                                          {openAccordion === i && (
+                        <div
                           className="overflow-hidden"
                         >
                           <p className="pt-3 text-sm text-secondary leading-relaxed">
                             {item.content}
                           </p>
-                        </motion.div>
+                        </div>
                       )}
-                    </AnimatePresence>
-                  </div>
+                                      </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
 

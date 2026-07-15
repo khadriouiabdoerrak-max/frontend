@@ -7,21 +7,6 @@ import { X, Loader2, ShieldCheck } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/tracking';
 
-const MOROCCAN_CITIES = [
-  'الدار البيضاء',
-  'الرباط',
-  'سلا',
-  'مراكش',
-  'طنجة',
-  'فاس',
-  'مكناس',
-  'أكادير',
-  'تطوان',
-  'القنيطرة',
-  'وجدة',
-  'مدينة أخرى',
-];
-
 export function CheckoutPopup({
   isOpen,
   onClose,
@@ -98,8 +83,8 @@ export function CheckoutPopup({
       return;
     }
 
-    if (!formData.city) {
-      setError('الرجاء اختيار المدينة.');
+    if (formData.city.trim().length < 2) {
+      setError('الرجاء إدخال اسم المدينة.');
       setIsLoading(false);
       return;
     }
@@ -118,7 +103,7 @@ export function CheckoutPopup({
           customer: {
             full_name: formData.fullName.trim(),
             phone: normalizedPhone,
-            city: formData.city,
+            city: formData.city.trim(),
             address: formData.address.trim(),
           },
           items: items.map((item) => ({
@@ -162,7 +147,7 @@ export function CheckoutPopup({
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60"
         onClick={onClose}
       />
 
@@ -255,21 +240,16 @@ export function CheckoutPopup({
                 <label className="block text-sm font-bold text-cocoa mb-1.5">
                   المدينة <span className="text-error">*</span>
                 </label>
-                <select
+                <input
+                  type="text"
                   required
                   value={formData.city}
                   onChange={(e) =>
                     setFormData({ ...formData, city: e.target.value })
                   }
                   className="w-full p-3 border border-champagne/50 rounded-btn bg-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors text-cocoa"
-                >
-                  <option value="">اختاري المدينة</option>
-                  {MOROCCAN_CITIES.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="مثال: الدار البيضاء، مراكش..."
+                />
               </div>
 
               <div>

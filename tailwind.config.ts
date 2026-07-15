@@ -24,13 +24,8 @@ const config: Config = {
         accent: "#3A2418",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "sans-serif"],
-        arabic: [
-          "var(--font-ibm-plex-arabic)",
-          "var(--font-tajawal)",
-          "var(--font-inter)",
-          "sans-serif",
-        ],
+        sans: ["var(--font-ibm-plex-arabic)", "sans-serif"],
+        arabic: ["var(--font-ibm-plex-arabic)", "sans-serif"],
       },
       borderRadius: {
         card: "16px",

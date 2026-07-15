@@ -1,16 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { Star } from 'lucide-react';
 import { useCartStore } from '@/lib/store';
-import { products, bundleProduct } from '@/lib/products';
+import { products, bundleProduct, getListImage } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-};
 
 export default function CollectionPage() {
   const { addItem } = useCartStore();
@@ -30,12 +25,7 @@ export default function CollectionPage() {
     <div className="bg-background pt-16 pb-24">
       <section className="px-6 py-16">
         <div className="container mx-auto max-w-5xl">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            className="text-center max-w-2xl mx-auto mb-12"
-          >
+          <div className="text-center max-w-2xl mx-auto mb-12 animate-fade-up">
             <h1 className="text-3xl sm:text-5xl font-bold text-cocoa mb-4">
               مجموعة OXIPRIME للعناية بالشعر
             </h1>
@@ -43,14 +33,9 @@ export default function CollectionPage() {
               اختاري المنتج المناسب لكِ أو ابدئي بالروتين الكامل للحصول على
               تجربة عناية متكاملة وثمن أفضل.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            className="bg-ivory border border-gold/40 rounded-card p-6 sm:p-8 mb-10 text-center shadow-card"
-          >
+          <div className="bg-ivory border border-gold/40 rounded-card p-6 sm:p-8 mb-10 text-center shadow-card animate-fade-up">
             <span className="inline-block bg-gold/10 text-gold text-xs font-bold px-3 py-1 rounded-badge mb-3">
               الأكثر توفيرا
             </span>
@@ -77,26 +62,26 @@ export default function CollectionPage() {
             >
               أضيفي الروتين الكامل للسلة
             </button>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {products.map((product) => (
-              <motion.div
+              <div
                 key={product.id}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeUp}
                 className="bg-ivory border border-champagne/30 rounded-card overflow-hidden flex flex-col"
               >
                 <Link
                   href={`/products/${product.slug}`}
-                  className="block aspect-[4/5] bg-gradient-to-b from-background to-champagne/20 overflow-hidden"
+                  className="block aspect-[4/5] bg-gradient-to-b from-background to-champagne/20 overflow-hidden relative"
                 >
-                  <img
-                    src={product.image}
+                  <Image
+                    src={getListImage(product)}
                     alt={product.nameAr}
-                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-contain p-3"
+                    loading="lazy"
+                    quality={70}
                   />
                 </Link>
                 <div className="p-4 flex flex-col gap-3 flex-1">
@@ -154,7 +139,7 @@ export default function CollectionPage() {
                     أضيفي للسلة
                   </button>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
