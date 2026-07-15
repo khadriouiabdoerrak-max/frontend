@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { arabicFont } from "@/lib/fonts";
-import dynamic from 'next/dynamic';
+import { CartProvider } from '@/components/cart/CartProvider';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
-
-const CartProvider = dynamic(
-  () =>
-    import('@/components/cart/CartProvider').then((mod) => mod.CartProvider),
-  { ssr: false },
-);
-
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://oxiprime.store",
