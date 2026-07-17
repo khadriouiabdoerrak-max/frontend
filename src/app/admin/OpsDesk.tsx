@@ -233,9 +233,10 @@ export default function OpsDesk() {
   const [showCancel, setShowCancel] = useState(false);
   const [showReporte, setShowReporte] = useState(false);
   const [followUpDate, setFollowUpDate] = useState(tomorrowLocalInput());
-  const [courier, setCourier] = useState('generic');
+  const [courier, setCourier] = useState('ozone');
   const [tracking, setTracking] = useState('');
   const [copied, setCopied] = useState(false);
+  const [ozoneReady, setOzoneReady] = useState(false);
   const [query, setQuery] = useState('');
 
   const knownNew = useRef<Set<string>>(new Set());
@@ -300,9 +301,33 @@ export default function OpsDesk() {
     const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
     const pref = localStorage.getItem(COURIER_PREF_KEY);
     if (pref) setCourier(pref);
+    else setCourier('ozone');
     if (saved) void load(saved);
     else setBooting(false);
   }, [load]);
+
+  useEffect(() => {
+    if (!token) return;
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/couriers', {
+          headers: { 'X-Admin-Token': token },
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          ozonexpress_configured?: boolean;
+          default?: string;
+        };
+        setOzoneReady(Boolean(data.ozonexpress_configured));
+        if (!localStorage.getItem(COURIER_PREF_KEY) && data.default) {
+          setCourier(data.default);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -435,15 +460,15 @@ export default function OpsDesk() {
     }
   };
 
-  const doShip = async (id: string) => {
+  const doShip = async (id: string, withProvider = false) => {
     if (!token) return;
     setBusy(true);
     setError('');
     try {
       const updated = await shipAdminOrder(token, id, {
-        courier_name: courier,
-        tracking_number: tracking,
-        create_with_provider: false,
+        courier_name: withProvider ? 'ozone' : courier,
+        tracking_number: withProvider ? '' : tracking,
+        create_with_provider: withProvider,
       });
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
@@ -1196,9 +1221,25 @@ export default function OpsDesk() {
                   <input
                     value={tracking}
                     onChange={(e) => setTracking(e.target.value)}
-                    placeholder="N° tracking"
+                    placeholder="N° tracking (يدوي)"
                     className="w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
                   />
+                  <button
+                    type="button"
+                    disabled={busy || !ozoneReady}
+                    onClick={() => void doShip(active.order_number, true)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#c45c26] text-white font-bold disabled:opacity-50"
+                    title={
+                      ozoneReady
+                        ? 'إنشاء طرد فـ OzonExpress تلقائياً'
+                        : 'زيد OZONEXPRESS_ID و API_KEY فـ EasyPanel'
+                    }
+                  >
+                    <Truck className="w-4 h-4" />
+                    {ozoneReady
+                      ? 'إرسال إلى OzonExpress'
+                      : 'OzonExpress غير مضبوط'}
+                  </button>
                   <button
                     type="button"
                     disabled={busy}
@@ -1215,11 +1256,11 @@ export default function OpsDesk() {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void doShip(active.order_number)}
+                    onClick={() => void doShip(active.order_number, false)}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold"
                   >
                     <Truck className="w-4 h-4" />
-                    Expédié (En cours)
+                    Expédié يدوي (En cours)
                   </button>
                 </div>
               )}
