@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Download, Lock, RefreshCw, LogOut } from 'lucide-react';
 
@@ -146,6 +147,12 @@ export default function AdminSalesClient() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href="/admin/confirm"
+              className="inline-flex items-center px-3 py-2 rounded-btn bg-cocoa text-ivory text-sm font-bold hover:bg-espresso"
+            >
+              مكان التأكيد
+            </Link>
             <button
               type="button"
               onClick={() => void loadOrders(token)}
@@ -158,7 +165,7 @@ export default function AdminSalesClient() {
             <button
               type="button"
               onClick={downloadCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-btn bg-cocoa text-ivory text-sm font-bold hover:bg-espresso"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-btn border border-champagne/50 text-sm text-cocoa hover:bg-ivory"
             >
               <Download className="w-4 h-4" />
               تحميل Excel
