@@ -143,6 +143,7 @@ export async function shipAdminOrder(
     courier_name?: string;
     tracking_number?: string;
     create_with_provider?: boolean;
+    city?: string;
   },
 ) {
   const res = await fetch(

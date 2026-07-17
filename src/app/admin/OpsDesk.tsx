@@ -235,6 +235,7 @@ export default function OpsDesk() {
   const [followUpDate, setFollowUpDate] = useState(tomorrowLocalInput());
   const [courier, setCourier] = useState('ozone');
   const [tracking, setTracking] = useState('');
+  const [shipCity, setShipCity] = useState('');
   const [copied, setCopied] = useState(false);
   const [ozoneReady, setOzoneReady] = useState(false);
   const [query, setQuery] = useState('');
@@ -257,6 +258,9 @@ export default function OpsDesk() {
     setDetailOpen(true);
     setShowCancel(false);
     setShowReporte(false);
+    const found = orders.find((o) => o.order_number === id);
+    setShipCity(found?.city || '');
+    setTracking(found?.tracking_number || '');
   };
 
   const closeDetail = () => {
@@ -469,6 +473,7 @@ export default function OpsDesk() {
         courier_name: withProvider ? 'ozone' : courier,
         tracking_number: withProvider ? '' : tracking,
         create_with_provider: withProvider,
+        city: shipCity.trim() || undefined,
       });
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
@@ -1199,6 +1204,15 @@ export default function OpsDesk() {
                 active.status === 'READY_TO_SHIP') && (
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-[#6a5648]">Expédition</p>
+                  <label className="block text-xs text-[#6a5648]">
+                    المدينة (صلّحيها إلا ما مشاتش)
+                    <input
+                      value={shipCity}
+                      onChange={(e) => setShipCity(e.target.value)}
+                      placeholder="مثال: Casablanca – Centre Ville"
+                      className="mt-1 w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
+                    />
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     {COURIERS.map((c) => (
                       <button
