@@ -33,17 +33,32 @@ jobs:
         with:
           context: .
           push: true
+          no-cache: true
           tags: |
             ghcr.io/khadriouiabdoerrak-max/frontend:latest
             ghcr.io/khadriouiabdoerrak-max/frontend:${{ github.sha }}
+            ghcr.io/khadriouiabdoerrak-max/frontend:main
           build-args: |
             NEXT_PUBLIC_API_URL=http://187.124.46.250:8000
             NEXT_PUBLIC_META_PIXEL_ID=
             NEXT_PUBLIC_TIKTOK_PIXEL_ID=
             NEXT_PUBLIC_SNAPCHAT_PIXEL_ID=
+            NEXT_PUBLIC_BUILD_ID=${{ github.sha }}
+            CACHEBUST=${{ github.sha }}
 
       - name: Make container image public
         continue-on-error: true
         run: gh api --method POST /user/packages/container/frontend/visibility -f visibility=public
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # EasyPanel often skips :latest pulls if deploy runs before the image exists.
+      # Deploy ONLY after the new image is pushed.
+      - name: Trigger EasyPanel deploy
+        run: |
+          curl -fsS -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"refs/heads/main"}' \
+            "http://187.124.46.250:3000/api/deploy/2c96c24d31693f02a63dac28e2b47ef00631a8115cfe9758"
+          echo ""
+          echo "EasyPanel deploy triggered after image push."

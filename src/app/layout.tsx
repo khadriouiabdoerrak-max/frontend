@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://oxiprime.store",
   ),
+  other: {
+    "oxiprime-build": process.env.NEXT_PUBLIC_BUILD_ID ?? "local-dev",
+  },
   title: "تاجكِ | روتين OXIPRIME الاحترافي للعناية بالشعر",
   description:
     "تاجكِ — متجر مغربي متخصص في منتجات OXIPRIME للعناية الاحترافية بالشعر. شامبو، بلسم، ماسك وسيروم كيراتين. دفع عند الاستلام داخل المغرب.",
