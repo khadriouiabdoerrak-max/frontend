@@ -6,4 +6,6 @@ export const arabicFont = IBM_Plex_Sans_Arabic({
   display: 'swap',
   variable: '--font-ibm-plex-arabic',
   preload: true,
+  adjustFontFallback: true,
+  fallback: ['Tahoma', 'Arial', 'sans-serif'],
 });

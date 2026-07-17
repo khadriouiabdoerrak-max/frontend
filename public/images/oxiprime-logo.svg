@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="OXIPRIME">
+  <rect width="80" height="80" rx="16" fill="#C1967F"/>
+  <g fill="#1A120E" transform="translate(40 42)">
+    <path d="M0 14C0-2-3-18 0-34C3-18 0-2 0 14Z"/>
+    <path d="M-2 10C-12-2-24-8-30-4C-18 2-8 8-2 10Z"/>
+    <path d="M-4 6C-16-10-18-22-10-26C-6-14-4-4-4 6Z"/>
+    <path d="M2 10C12-2 24-8 30-4C18 2 8 8 2 10Z"/>
+    <path d="M4 6C16-10 18-22 10-26C6-14 4-4 4 6Z"/>
+  </g>
+</svg>

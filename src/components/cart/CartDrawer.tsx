@@ -6,6 +6,8 @@ import { useCartStore } from '@/lib/store';
 import { ShoppingBag, X, Plus, Minus, ShieldCheck, Phone, Star } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { bundleProduct } from '@/lib/products';
+import { calcOrderTotal } from '@/lib/shipping';
+import { cartWhatsAppHref } from '@/lib/whatsapp';
 
 const CheckoutPopup = dynamic(
   () =>
@@ -261,26 +263,44 @@ export function CartDrawer() {
               ))}
             </div>
 
-            {/* Total */}
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-secondary">المجموع</span>
-              <div className="text-left">
-                <span className="text-xl font-bold text-cocoa">
-                  {formatPrice(total)}
-                </span>
-                {bundleInCart && (
-                  <span className="block text-xs text-success font-medium text-left">
-                    وفّرتِ 197 درهم
-                  </span>
-                )}
-              </div>
-            </div>
+            {/* Total + shipping preview */}
+            {(() => {
+              const totals = calcOrderTotal(total);
+              return (
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-sm text-secondary">
+                    <span>المنتجات</span>
+                    <span>{formatPrice(totals.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-secondary">
+                    <span>التوصيل</span>
+                    <span>
+                      {totals.freeShipping
+                        ? 'مجاني'
+                        : formatPrice(totals.shipping)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-secondary">المجموع</span>
+                    <div className="text-left">
+                      <span className="text-xl font-bold text-cocoa">
+                        {formatPrice(totals.total)}
+                      </span>
+                      {bundleInCart && (
+                        <span className="block text-xs text-success font-medium text-left">
+                          وفّرتِ 197 درهم
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <p className="text-xs text-center text-muted-brown">
-              التوصيل يتم تأكيده عبر الهاتف
+              توصيل مجاني فوق 500 درهم · تأكيد عبر الهاتف
             </p>
 
-            {/* Checkout CTA */}
             <button
               onClick={() => {
                 closeCart();
@@ -290,6 +310,22 @@ export function CartDrawer() {
             >
               إتمام الطلب
             </button>
+
+            <a
+              href={cartWhatsAppHref(
+                items.map((i) => ({
+                  nameAr: i.nameAr,
+                  quantity: i.quantity,
+                  price: i.price,
+                })),
+                calcOrderTotal(total).total,
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center bg-[#25D366] text-white py-3 font-bold rounded-btn hover:bg-[#1ebe59] transition-colors text-sm"
+            >
+              اطلبي عبر واتساب
+            </a>
           </div>
         )}
       </div>

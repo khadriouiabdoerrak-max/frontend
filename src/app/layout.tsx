@@ -5,6 +5,9 @@ import { CartProvider } from '@/components/cart/CartProvider';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
+import { WhatsAppButton } from '@/components/layout/WhatsAppButton';
+import { TrackingScripts } from '@/components/tracking/TrackingScripts';
+import { OrganizationJsonLd } from '@/components/seo/JsonLd';
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://oxiprime.store",
@@ -49,10 +52,13 @@ export default function RootLayout({
         className={`${arabicFont.variable} font-arabic antialiased bg-background text-primary min-h-screen flex flex-col`}
       >
         <CartProvider>
+          <OrganizationJsonLd />
+          <TrackingScripts />
           <AnnouncementBar />
           <Navbar />
           <main className="flex-grow">{children}</main>
           <Footer />
+          <WhatsAppButton />
         </CartProvider>
       </body>
     </html>

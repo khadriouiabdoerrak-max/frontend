@@ -4,7 +4,8 @@ import dynamic from 'next/dynamic';
 import { AddToCartButton } from '@/components/cart/AddToCartButton';
 import { LazySection } from '@/components/home/LazySection';
 import { StarRating } from '@/components/home/StarRating';
-import { products, bundleProduct, getListImage } from '@/lib/products';
+import { StickyOrderBar } from '@/components/home/StickyOrderBar';
+import { products, bundleProduct } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
 
 const HomeFAQ = dynamic(
@@ -21,175 +22,380 @@ const bundleCartItem = {
   isBundle: true as const,
 };
 
+const saving =
+  (bundleProduct.compareAtPrice ?? bundleProduct.price) - bundleProduct.price;
+
+const productImages: Record<string, string> = {
+  'repair-hair-shampoo': '/images/oxiprime-shampoo-realistic.webp',
+  'repair-hair-conditioner': '/images/oxiprime-conditioner-realistic.webp',
+  'deep-conditioning-repair-mask': '/images/oxiprime-mask-realistic.webp',
+  'thermal-keratin-hair-serum': '/images/oxiprime-serum-realistic.webp',
+};
+
+const routineSteps = [
+  {
+    step: '1',
+    title: 'تنظيف لطيف',
+    desc: 'الشامبو كينقي الشعر بلا إحساس بالجفاف.',
+  },
+  {
+    step: '2',
+    title: 'ترطيب ونعومة',
+    desc: 'البلسم كيرطب الأطراف وكيسهّل التسريح.',
+  },
+  {
+    step: '3',
+    title: 'تغذية مكثفة',
+    desc: 'الماسك عناية أسبوعية للشعر الجاف والمتضرر.',
+  },
+  {
+    step: '4',
+    title: 'حماية ولمعان',
+    desc: 'السيروم كيحمي من الحرارة وكيزيد اللمعان.',
+  },
+];
+
+const testimonials = [
+  {
+    name: 'س.م.',
+    city: 'الدار البيضاء',
+    text: 'شعري ولى أسهل فالتسريح وأكثر لمعانا بعد الروتين الكامل.',
+    image: '/images/oxiprime-smooth-hair-result.webp',
+  },
+  {
+    name: 'ف.ب.',
+    city: 'الرباط',
+    text: 'كنت كنشتري منتجات متفرقة، الباك وفرّ ليا الفلوس والوقت.',
+    image: '/images/oxiprime-hair-lifestyle-hero.webp',
+  },
+  {
+    name: 'ن.ح.',
+    city: 'مراكش',
+    text: 'النفشة نقصات واللمعان باين من أول أسبوع.',
+    image: '/images/oxiprime-complete-bundle-realistic.webp',
+  },
+];
+
+const trustChips = [
+  'دفع عند الاستلام',
+  'تأكيد بالهاتف / واتساب',
+  'توصيل لجميع المدن',
+  'توصيل مجاني فوق 500 درهم',
+];
+
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <section className="relative bg-gradient-to-b from-[#EFE5D6] to-background pt-12 pb-14 px-4 sm:px-6">
-        <div className="container mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          <div className="space-y-5 text-center lg:text-right">
-            <h1 className="text-3xl sm:text-5xl font-bold text-cocoa leading-tight">
-              تاجكِ... روتين احترافي لشعر أكثر نعومة ولمعانا.
-            </h1>
-            <p className="text-sm sm:text-lg text-secondary max-w-2xl mx-auto leading-relaxed">
-              مجموعة OXIPRIME للشعر الجاف والمتضرر: شامبو، بلسم، ماسك وسيروم
-              كيراتين — روتين صالون داخل بيتكِ.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-              <AddToCartButton
-                product={bundleCartItem}
-                className="w-full sm:w-auto bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn text-base"
-              >
-                اطلبي الروتين الكامل
-              </AddToCartButton>
-              <Link
-                href="/collection"
-                className="w-full sm:w-auto bg-transparent text-cocoa border border-cocoa px-8 py-3.5 font-bold rounded-btn text-base text-center"
-              >
-                تصفحي المنتجات
-              </Link>
+    <div className="flex flex-col min-h-screen pb-16 md:pb-0">
+      {/* ─── HERO ─── */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#EFE5D6] via-[#F7F0E7] to-background">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(212,181,106,0.18),_transparent_55%)]" />
+        <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 pt-10 pb-12 sm:pt-14 sm:pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            <div className="space-y-5 text-center lg:text-right order-2 lg:order-1">
+              <p className="inline-block rounded-badge bg-gold/15 px-3 py-1 text-xs font-bold text-gold">
+                تاجكِ · روتين OXIPRIME الكامل
+              </p>
+              <h1 className="text-3xl sm:text-5xl font-bold text-cocoa leading-tight">
+                شعرك يستاهل روتين كامل… مشي غير شامبو.
+              </h1>
+              <p className="text-sm sm:text-lg text-secondary max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                باك واحد: شامبو + بلسم + ماسك + سيروم. تنظيف، ترطيب، تغذية
+                وحماية — بثمن أفضل ودفع عند الاستلام.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+                <AddToCartButton
+                  product={bundleCartItem}
+                  className="w-full sm:w-auto bg-cocoa text-ivory px-8 py-4 font-bold rounded-btn text-base hover:bg-espresso transition-colors"
+                >
+                  اطلبي الروتين الكامل — {formatPrice(bundleProduct.price)}
+                </AddToCartButton>
+                <Link
+                  href={`/products/${bundleProduct.slug}`}
+                  className="w-full sm:w-auto bg-transparent text-cocoa border border-cocoa px-8 py-4 font-bold rounded-btn text-base text-center hover:bg-cocoa/5 transition-colors"
+                >
+                  شوفي تفاصيل الباك
+                </Link>
+              </div>
+              <p className="text-xs text-muted-brown">
+                دفع عند الاستلام | تأكيد هاتفي | توصيل داخل المغرب
+              </p>
             </div>
-            <p className="text-xs text-muted-brown">
-              دفع عند الاستلام | توصيل داخل المغرب
-            </p>
-          </div>
 
-          <Link
-            href={`/products/${bundleProduct.slug}`}
-            className="relative block overflow-hidden rounded-card border border-champagne/40 bg-ivory shadow-card"
-            aria-label="شوفي روتين OXIPRIME الكامل"
-          >
-            <div className="relative min-h-[220px] sm:min-h-[280px] w-full bg-gradient-to-b from-champagne/30 to-ivory flex items-center justify-center gap-3 p-6">
-              {products.map((product) => (
+            <Link
+              href={`/products/${bundleProduct.slug}`}
+              className="group relative block overflow-hidden rounded-card border border-champagne/40 bg-ivory shadow-card order-1 lg:order-2"
+              aria-label="شوفي روتين OXIPRIME الكامل"
+            >
+              <div className="relative aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5] w-full">
                 <Image
-                  key={product.id}
-                  src={getListImage(product)}
-                  alt=""
-                  width={56}
-                  height={80}
-                  className="h-14 sm:h-16 w-auto object-contain"
+                  src="/images/oxiprime-hair-lifestyle-hero.webp"
+                  alt="شعر ناعم ولامع مع روتين OXIPRIME"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-              ))}
-            </div>
-            <div className="absolute inset-x-4 bottom-4 rounded-card bg-cocoa/90 p-3 text-center text-ivory">
-              <p className="text-sm font-bold">شوفي الباك الكامل</p>
-            </div>
-          </Link>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-cocoa/85 via-cocoa/40 to-transparent p-5 sm:p-6">
+                  <p className="text-ivory text-sm sm:text-base font-bold">
+                    اضغطي وشوفي الباك الكامل
+                  </p>
+                  <p className="text-champagne text-xs mt-1">
+                    توفري {saving} درهم مقارنة بالشراء الفردي
+                  </p>
+                </div>
+              </div>
+            </Link>
+          </div>
         </div>
       </section>
 
-      <section className="bg-cocoa text-ivory py-3 px-4">
-        <div className="container mx-auto grid grid-cols-2 gap-3 text-center text-[11px] sm:text-sm font-medium">
-          <span>✓ منتجات أصلية</span>
-          <span>📞 تأكيد هاتفي</span>
-          <span>🚚 توصيل المغرب</span>
-          <span>💵 دفع عند الاستلام</span>
+      {/* ─── TRUST BAR ─── */}
+      <section className="bg-cocoa text-ivory py-3.5 px-4">
+        <div className="container mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-[11px] sm:text-sm font-medium">
+          {trustChips.map((chip) => (
+            <span key={chip}>{chip}</span>
+          ))}
         </div>
       </section>
 
+      {/* ─── PROBLEM ─── */}
       <section className="py-14 px-4 sm:px-6 bg-background">
-        <div className="container mx-auto max-w-3xl text-center space-y-4">
+        <div className="container mx-auto max-w-3xl text-center space-y-6">
           <h2 className="text-2xl sm:text-4xl font-bold text-cocoa">
             هل فقد شعركِ نعومته ولمعانه؟
           </h2>
           <p className="text-secondary text-sm sm:text-base leading-relaxed">
-            الصباغة، السشوار والماء القاسي يخلو الشعر جافا وباهتا. تحتاجين
-            روتينا يغذي، يرطب، ويحمي — ماشي غير شامبو عادي.
+            الصباغة، السشوار والماء القاسي كيخليو الشعر جاف وباهت. الحل ماشي
+            منتج واحد — خاصك روتين كامل.
           </p>
-        </div>
-      </section>
-
-      <section className="py-14 px-4 sm:px-6 bg-ivory">
-        <div className="container mx-auto max-w-5xl">
-          <h2 className="text-2xl sm:text-4xl font-bold text-cocoa text-center mb-10">
-            روتين من 4 خطوات
-          </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {products.map((product) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            {['جفاف وتقصف', 'نفشة وصعوبة التسريح', 'لمعان ضعيف'].map((item) => (
               <div
-                key={product.id}
-                className="bg-background rounded-card p-4 border border-champagne/30 text-center"
+                key={item}
+                className="rounded-card border border-champagne/30 bg-ivory px-4 py-3 text-sm font-bold text-cocoa"
               >
-                <div className="w-8 h-8 rounded-full bg-cocoa text-ivory flex items-center justify-center font-bold text-xs mx-auto mb-2">
-                  {product.step}
-                </div>
-                <h3 className="font-bold text-cocoa text-xs leading-snug">
-                  {product.nameAr}
-                </h3>
+                {item}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <LazySection minHeight="420px">
-        <section className="py-14 px-4 sm:px-6 bg-background">
-          <div className="container mx-auto max-w-5xl bg-ivory rounded-card border border-gold/40 overflow-hidden">
-            <div className="bg-cocoa text-ivory text-center py-2.5 text-sm font-bold">
-              الأكثر توفيرا — باك OXIPRIME الكامل
-            </div>
-            <div className="p-6 sm:p-8 space-y-5 text-center lg:text-right">
-              <h2 className="text-2xl sm:text-3xl font-bold text-cocoa">
-                {bundleProduct.nameAr}
-              </h2>
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                <span className="text-3xl font-bold text-cocoa">
-                  {formatPrice(bundleProduct.price)}
-                </span>
-                <span className="text-lg line-through text-muted-brown">
-                  {formatPrice(bundleProduct.compareAtPrice!)}
-                </span>
-                <span className="text-sm text-success font-bold">
-                  توفير 197 درهم
-                </span>
+      {/* ─── BUNDLE OFFER ─── */}
+      <LazySection minHeight="560px">
+        <section className="py-14 px-4 sm:px-6 bg-ivory">
+          <div className="container mx-auto max-w-5xl">
+            <div className="overflow-hidden rounded-card border border-gold/40 bg-background shadow-card">
+              <div className="bg-cocoa text-ivory text-center py-2.5 text-sm font-bold">
+                الأكثر توفيرا — باك OXIPRIME الكامل
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
                 <Link
                   href={`/products/${bundleProduct.slug}`}
-                  className="bg-cocoa text-ivory py-3.5 px-6 font-bold rounded-btn text-center"
+                  className="relative block min-h-[280px] lg:min-h-full"
+                  aria-label="صفحة الباك الكامل"
                 >
-                  شوفي التفاصيل
+                  <Image
+                    src="/images/oxiprime-complete-bundle-realistic.webp"
+                    alt="باك OXIPRIME الكامل: شامبو، بلسم، ماسك وسيروم"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    loading="lazy"
+                    className="object-cover"
+                  />
                 </Link>
-                <AddToCartButton
-                  product={bundleCartItem}
-                  className="border border-cocoa text-cocoa py-3.5 px-6 font-bold rounded-btn"
-                >
-                  أضيفي للسلة
-                </AddToCartButton>
+                <div className="p-6 sm:p-8 space-y-5 text-center lg:text-right">
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-cocoa leading-tight">
+                      {bundleProduct.nameAr}
+                    </h2>
+                    <p className="text-sm text-muted-brown mt-2 leading-relaxed">
+                      4 منتجات فباك واحد بترتيب واضح: تنظفي، ترطبي، تغذي،
+                      وتحمي — بلا ما تحتاري شنو تاخذي.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+                    <span className="text-4xl font-bold text-cocoa">
+                      {formatPrice(bundleProduct.price)}
+                    </span>
+                    <span className="text-lg line-through text-muted-brown">
+                      {formatPrice(bundleProduct.compareAtPrice!)}
+                    </span>
+                    <span className="rounded-badge bg-success/10 px-3 py-1 text-sm font-bold text-success">
+                      توفري {saving} درهم
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-sm text-secondary text-right">
+                    {[
+                      'روتين كامل مرتب من أول غسلة حتى اللمعان',
+                      'ثمن أفضل من شراء كل منتج بوحدو',
+                      'طلب بسيط: زر واحد + دفع عند الاستلام',
+                    ].map((point) => (
+                      <p key={point} className="flex items-start gap-2">
+                        <span className="text-gold font-bold shrink-0">✓</span>
+                        <span>{point}</span>
+                      </p>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <AddToCartButton
+                      product={bundleCartItem}
+                      className="w-full bg-cocoa text-ivory py-3.5 px-6 font-bold rounded-btn hover:bg-espresso transition-colors"
+                    >
+                      أضيفي الباك للسلة
+                    </AddToCartButton>
+                    <Link
+                      href={`/products/${bundleProduct.slug}`}
+                      className="w-full border border-cocoa text-cocoa py-3.5 px-6 font-bold rounded-btn text-center hover:bg-cocoa/5 transition-colors"
+                    >
+                      شوفي التفاصيل
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
       </LazySection>
 
-      <LazySection minHeight="480px">
+      {/* ─── 4 STEPS ─── */}
+      <section className="py-14 px-4 sm:px-6 bg-background">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center max-w-2xl mx-auto mb-10">
+            <h2 className="text-2xl sm:text-4xl font-bold text-cocoa mb-3">
+              روتين من 4 خطوات
+            </h2>
+            <p className="text-sm text-secondary leading-relaxed">
+              كل خطوة كتكمّل اللي قبلها. النتيجة أوضح ملي كتستعملي الروتين كامل.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {routineSteps.map((item) => (
+              <div
+                key={item.step}
+                className="bg-ivory rounded-card p-4 sm:p-5 border border-champagne/30 text-center"
+              >
+                <div className="w-9 h-9 rounded-full bg-cocoa text-ivory flex items-center justify-center font-bold text-sm mx-auto mb-3 font-sans">
+                  {item.step}
+                </div>
+                <h3 className="font-bold text-cocoa text-sm mb-1">{item.title}</h3>
+                <p className="text-xs text-muted-brown leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── RESULT + TESTIMONIALS ─── */}
+      <LazySection minHeight="520px">
         <section className="py-14 px-4 sm:px-6 bg-ivory">
           <div className="container mx-auto max-w-5xl">
-            <h2 className="text-2xl font-bold text-cocoa text-center mb-8">
-              تسوقي المنتجات بشكل فردي
-            </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-12">
+              <div className="relative aspect-[16/10] overflow-hidden rounded-card border border-champagne/30 shadow-card">
+                <Image
+                  src="/images/oxiprime-smooth-hair-result.webp"
+                  alt="نتيجة شعر ناعم ولامع مع روتين OXIPRIME"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  loading="lazy"
+                  className="object-cover"
+                />
+              </div>
+              <div className="text-center lg:text-right space-y-4">
+                <h2 className="text-2xl sm:text-3xl font-bold text-cocoa">
+                  النتيجة اللي كتقلبي عليها
+                </h2>
+                <p className="text-sm text-secondary leading-relaxed">
+                  نعومة أوضح، تسريح أسهل، ولمعان من غير مظهر دهني — ملي كتمشي
+                  مع الروتين بالترتيب.
+                </p>
+                <AddToCartButton
+                  product={bundleCartItem}
+                  className="bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn hover:bg-espresso transition-colors"
+                >
+                  أضيفي الروتين الكامل
+                </AddToCartButton>
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-cocoa text-center mb-6">
+              ماذا تقول العميلات
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {testimonials.map((review) => (
+                <div
+                  key={review.name}
+                  className="bg-background rounded-card border border-champagne/30 overflow-hidden"
+                >
+                  <div className="relative aspect-[16/10]">
+                    <Image
+                      src={review.image}
+                      alt={`تجربة ${review.name}`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 33vw"
+                      loading="lazy"
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <StarRating rating={5} />
+                    <p className="text-sm text-secondary leading-relaxed italic">
+                      &ldquo;{review.text}&rdquo;
+                    </p>
+                    <p className="text-xs text-muted-brown">
+                      {review.name} · {review.city}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-[11px] text-muted-brown mt-4">
+              نتائج أولية. قد تختلف حسب نوع الشعر وطريقة الاستعمال.
+            </p>
+          </div>
+        </section>
+      </LazySection>
+
+      {/* ─── INDIVIDUAL PRODUCTS (secondary) ─── */}
+      <LazySection minHeight="480px">
+        <section className="py-14 px-4 sm:px-6 bg-background">
+          <div className="container mx-auto max-w-5xl">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-cocoa">
+                بغيتي منتج بوحدو؟
+              </h2>
+              <p className="text-sm text-muted-brown mt-2">
+                متوفر فرديا — لكن أفضل نتيجة مع الروتين الكامل
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {products.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-background rounded-card border border-champagne/30 overflow-hidden flex flex-col"
+                  className="bg-ivory rounded-card border border-champagne/30 overflow-hidden flex flex-col"
                 >
                   <Link
                     href={`/products/${product.slug}`}
-                    className="block aspect-[4/5] relative bg-gradient-to-b from-ivory to-champagne/20 p-4"
+                    className="block aspect-[3/4] relative bg-gradient-to-b from-background to-champagne/20"
                   >
                     <Image
-                      src={getListImage(product)}
+                      src={productImages[product.slug] ?? product.image!}
                       alt={product.nameAr}
                       fill
-                      sizes="(max-width: 640px) 50vw, 25vw"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       loading="lazy"
-                      className="object-contain p-2"
+                      className="object-cover"
                     />
                   </Link>
-                  <div className="p-3 flex flex-col gap-2 flex-1">
+                  <div className="p-4 flex flex-col gap-2 flex-1">
                     <StarRating rating={product.rating} />
                     <Link href={`/products/${product.slug}`}>
-                      <h3 className="font-bold text-xs text-cocoa leading-snug">
+                      <h3 className="font-bold text-sm text-cocoa leading-snug hover:text-gold transition-colors">
                         {product.nameAr}
                       </h3>
                     </Link>
@@ -218,23 +424,65 @@ export default function Home() {
         </section>
       </LazySection>
 
+      {/* ─── QUIZ + GUIDES ─── */}
+      <section className="py-12 px-4 bg-background">
+        <div className="container mx-auto max-w-5xl grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link
+            href="/quiz"
+            className="rounded-card border border-champagne/40 bg-ivory p-6 hover:border-gold/50 transition-colors"
+          >
+            <p className="text-xs font-bold text-gold mb-2">اختبار سريع</p>
+            <h2 className="text-xl font-bold text-cocoa mb-2">
+              ماشي عارفة شنو يناسب شعركِ؟
+            </h2>
+            <p className="text-sm text-secondary">
+              4 أسئلة ونقترحو عليكِ الروتين أو المنتج الأنسب.
+            </p>
+          </Link>
+          <Link
+            href="/guides"
+            className="rounded-card border border-champagne/40 bg-ivory p-6 hover:border-gold/50 transition-colors"
+          >
+            <p className="text-xs font-bold text-gold mb-2">دليل العناية</p>
+            <h2 className="text-xl font-bold text-cocoa mb-2">
+              نصائح للشعر فالمغرب
+            </h2>
+            <p className="text-sm text-secondary">
+              الماء العسر، بعد الصباغة، وكيفاش تستعملي الروتين خطوة بخطوة.
+            </p>
+          </Link>
+        </div>
+      </section>
+
+      {/* ─── FINAL CTA ─── */}
       <LazySection minHeight="200px">
-        <section className="py-14 px-4 bg-background text-center">
-          <div className="container mx-auto max-w-xl space-y-4">
-            <h2 className="text-2xl sm:text-3xl font-bold text-cocoa">
+        <section className="py-16 px-4 bg-cocoa text-ivory text-center">
+          <div className="container mx-auto max-w-xl space-y-5">
+            <h2 className="text-2xl sm:text-3xl font-bold">
               ابدئي روتين تاجكِ اليوم
             </h2>
+            <p className="text-sm text-champagne/80 leading-relaxed">
+              الباك الكامل بـ {formatPrice(bundleProduct.price)} بدل{' '}
+              {formatPrice(bundleProduct.compareAtPrice!)} — دفع عند الاستلام.
+            </p>
             <AddToCartButton
               product={bundleCartItem}
-              className="bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn"
+              className="bg-gold text-cocoa px-8 py-4 font-bold rounded-btn hover:bg-champagne transition-colors"
             >
-              أضيفي الروتين الكامل — 599 درهم
+              أضيفي الروتين الكامل — {formatPrice(bundleProduct.price)}
             </AddToCartButton>
+            <Link
+              href="/faq"
+              className="block text-xs text-champagne/70 underline underline-offset-2"
+            >
+              الأسئلة الشائعة
+            </Link>
           </div>
         </section>
       </LazySection>
 
       <HomeFAQ />
+      <StickyOrderBar />
     </div>
   );
 }

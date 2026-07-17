@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 export function LazySection({
   children,
   minHeight = '1px',
-  rootMargin = '250px',
+  rootMargin = '120px',
 }: {
   children: React.ReactNode;
   minHeight?: string;
@@ -17,6 +17,15 @@ export function LazySection({
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
+
+    // Skip observer work if already near viewport on first paint
+    if (typeof window !== 'undefined') {
+      const rect = node.getBoundingClientRect();
+      if (rect.top < window.innerHeight + 120) {
+        setVisible(true);
+        return;
+      }
+    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {

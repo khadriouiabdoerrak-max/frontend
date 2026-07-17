@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { BrandLogo } from '@/components/layout/BrandLogo';
 import { useCartStore } from '@/lib/store';
 import { useEffect, useState } from 'react';
 
@@ -51,7 +52,8 @@ export function Navbar() {
   const navLinks = [
     { href: '/', label: 'الرئيسية' },
     { href: '/collection', label: 'المجموعة' },
-    { href: '/about', label: 'من نحن' },
+    { href: '/quiz', label: 'اختبار الشعر' },
+    { href: '/guides', label: 'الدليل' },
     { href: '/contact', label: 'تواصلي معنا' },
   ];
 
@@ -66,26 +68,14 @@ export function Navbar() {
       >
         <div className="container mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
           {/* Logo / Brand */}
-          <Link href="/" className="flex items-center gap-3 shrink-0">
-            {/* Circle mark */}
-            <div
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0"
-              style={{
-                background: '#3A2418',
-                border: '1px solid #C99A4A',
-              }}
-            >
-              <span className="text-[10px] sm:text-xs font-bold text-gold tracking-widest font-sans leading-none">
-                OXI
-              </span>
-            </div>
-            {/* Text block */}
-            <div className="flex flex-col leading-none">
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 shrink-0 group">
+            <BrandLogo className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 transition-transform group-hover:scale-[1.03]" />
+            <div className="flex flex-col leading-none gap-0.5">
               <span className="text-xl sm:text-2xl font-bold text-cocoa leading-tight">
                 تاجكِ
               </span>
-              <span className="text-[10px] text-muted-brown font-sans tracking-wider">
-                .oxiprime
+              <span className="text-[10px] sm:text-[11px] text-muted-brown font-sans tracking-[0.18em] uppercase">
+                OXIPRIME
               </span>
             </div>
           </Link>

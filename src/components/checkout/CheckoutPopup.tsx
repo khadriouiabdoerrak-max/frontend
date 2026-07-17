@@ -6,6 +6,9 @@ import { useCartStore } from '@/lib/store';
 import { X, Loader2, ShieldCheck } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/tracking';
+import { CITY_OPTIONS, calcOrderTotal } from '@/lib/shipping';
+import { FREE_SHIPPING_THRESHOLD } from '@/lib/site';
+import { cartWhatsAppHref } from '@/lib/whatsapp';
 
 export function CheckoutPopup({
   isOpen,
@@ -28,16 +31,17 @@ export function CheckoutPopup({
     commitment: false,
   });
 
-  const total = getCartTotal();
+  const subtotal = getCartTotal();
+  const totals = calcOrderTotal(subtotal);
 
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
     trackInitiateCheckout({
-      value: total,
+      value: totals.total,
       currency: 'MAD',
       content_ids: items.map((item) => item.id),
     });
-  }, [isOpen, items, total]);
+  }, [isOpen, items, totals.total]);
 
   useEffect(() => {
     if (isOpen) {
@@ -84,7 +88,7 @@ export function CheckoutPopup({
     }
 
     if (formData.city.trim().length < 2) {
-      setError('الرجاء إدخال اسم المدينة.');
+      setError('الرجاء اختيار المدينة.');
       setIsLoading(false);
       return;
     }
@@ -104,12 +108,13 @@ export function CheckoutPopup({
             full_name: formData.fullName.trim(),
             phone: normalizedPhone,
             city: formData.city.trim(),
-            address: formData.address.trim(),
+            address: formData.address.trim() || formData.city.trim(),
           },
           items: items.map((item) => ({
             product_slug: item.slug,
             quantity: item.quantity,
           })),
+          notes: formData.notes.trim() || undefined,
           source: 'website',
         }),
       });
@@ -121,7 +126,7 @@ export function CheckoutPopup({
       }
 
       trackPurchase({
-        value: data.total_mad ?? total,
+        value: data.total_mad ?? totals.total,
         currency: 'MAD',
         content_ids: items.map((item) => item.id),
         order_id: data.order_number,
@@ -143,17 +148,21 @@ export function CheckoutPopup({
 
   if (!isOpen) return null;
 
+  const waHref = cartWhatsAppHref(
+    items.map((i) => ({
+      nameAr: i.nameAr,
+      quantity: i.quantity,
+      price: i.price,
+    })),
+    totals.total,
+    formData.city || undefined,
+  );
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative bg-ivory w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-modal overflow-hidden flex flex-col max-h-[95vh]">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-champagne/30 bg-background">
           <div>
             <h2 className="text-lg font-bold text-cocoa">إتمام الطلب</h2>
@@ -172,7 +181,6 @@ export function CheckoutPopup({
 
         <div className="overflow-y-auto px-6 py-5">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Order summary */}
             <div className="bg-background rounded-card p-4 border border-champagne/30">
               <div className="space-y-2 mb-3">
                 {items.map((item) => (
@@ -186,11 +194,31 @@ export function CheckoutPopup({
                   </div>
                 ))}
               </div>
-              <div className="border-t border-champagne/30 pt-2 flex justify-between font-bold text-cocoa">
-                <span>المجموع</span>
-                <span>{formatPrice(total)}</span>
+              <div className="border-t border-champagne/30 pt-2 space-y-1.5 text-sm">
+                <div className="flex justify-between text-secondary">
+                  <span>المجموع الفرعي</span>
+                  <span>{formatPrice(totals.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-secondary">
+                  <span>التوصيل</span>
+                  <span className={totals.freeShipping ? 'text-success font-medium' : ''}>
+                    {totals.freeShipping
+                      ? 'مجاني'
+                      : formatPrice(totals.shipping)}
+                  </span>
+                </div>
+                {!totals.freeShipping && totals.remainingForFree > 0 && (
+                  <p className="text-[11px] text-muted-brown text-right">
+                    زيد {formatPrice(totals.remainingForFree)} باش يولي التوصيل
+                    مجاني (من {FREE_SHIPPING_THRESHOLD} درهم)
+                  </p>
+                )}
+                <div className="flex justify-between font-bold text-cocoa pt-1">
+                  <span>المجموع الكلي</span>
+                  <span>{formatPrice(totals.total)}</span>
+                </div>
               </div>
-              <p className="text-xs text-success mt-1 font-medium">
+              <p className="text-xs text-success mt-2 font-medium">
                 دفع عند الاستلام — توصيل داخل المغرب
               </p>
             </div>
@@ -201,7 +229,6 @@ export function CheckoutPopup({
               </div>
             )}
 
-            {/* Fields */}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-cocoa mb-1.5">
@@ -240,16 +267,21 @@ export function CheckoutPopup({
                 <label className="block text-sm font-bold text-cocoa mb-1.5">
                   المدينة <span className="text-error">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   required
                   value={formData.city}
                   onChange={(e) =>
                     setFormData({ ...formData, city: e.target.value })
                   }
                   className="w-full p-3 border border-champagne/50 rounded-btn bg-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors text-cocoa"
-                  placeholder="مثال: الدار البيضاء، مراكش..."
-                />
+                >
+                  <option value="">اختاري مدينتكِ</option>
+                  {CITY_OPTIONS.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -266,9 +298,23 @@ export function CheckoutPopup({
                   placeholder="الحي، الشارع، رقم المنزل..."
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-bold text-cocoa mb-1.5">
+                  ملاحظة (اختياري)
+                </label>
+                <input
+                  type="text"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                  className="w-full p-3 border border-champagne/50 rounded-btn bg-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors text-cocoa"
+                  placeholder="مثال: الاتصال قبل التوصيل"
+                />
+              </div>
             </div>
 
-            {/* Commitment checkbox */}
             <label className="flex items-start gap-3 rounded-card border border-champagne/30 bg-background p-4 text-sm text-secondary leading-relaxed cursor-pointer">
               <input
                 type="checkbox"
@@ -278,12 +324,9 @@ export function CheckoutPopup({
                 }
                 className="mt-0.5 accent-gold"
               />
-              <span>
-                أؤكد أنني أريد استلام الطلب والدفع عند التوصيل.
-              </span>
+              <span>أؤكد أنني أريد استلام الطلب والدفع عند التوصيل.</span>
             </label>
 
-            {/* CTA */}
             <button
               type="submit"
               disabled={isLoading}
@@ -292,9 +335,18 @@ export function CheckoutPopup({
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                'تأكيد الطلب'
+                `تأكيد الطلب — ${formatPrice(totals.total)}`
               )}
             </button>
+
+            <a
+              href={waHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center bg-[#25D366] text-white py-3.5 font-bold rounded-btn hover:bg-[#1ebe59] transition-colors text-sm"
+            >
+              اطلبي عبر واتساب
+            </a>
 
             <div className="flex items-center justify-center gap-2 text-xs text-muted-brown pb-2">
               <ShieldCheck className="w-4 h-4 text-success" />

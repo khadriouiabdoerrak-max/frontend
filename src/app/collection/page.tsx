@@ -14,36 +14,124 @@ const bundleCartItem = {
   isBundle: true as const,
 };
 
+const saving =
+  (bundleProduct.compareAtPrice ?? bundleProduct.price) - bundleProduct.price;
+
 export default function CollectionPage() {
   return (
-    <div className="bg-background pt-16 pb-24">
-      <section className="px-4 py-12">
+    <div className="bg-background pb-24">
+      <section className="px-4 pt-10 pb-6 sm:pt-14">
+        <div className="container mx-auto max-w-2xl text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-cocoa mb-3">
+            مجموعة OXIPRIME
+          </h1>
+          <p className="text-secondary text-sm leading-relaxed">
+            الروتين الكامل هو الاختيار الأفضل — أو اختاري منتج بوحدو.
+          </p>
+        </div>
+      </section>
+
+      {/* Bundle hero offer */}
+      <section className="px-4 pb-12">
         <div className="container mx-auto max-w-5xl">
-          <div className="text-center max-w-2xl mx-auto mb-10">
-            <h1 className="text-3xl sm:text-4xl font-bold text-cocoa mb-3">
-              مجموعة OXIPRIME
-            </h1>
-            <p className="text-secondary text-sm leading-relaxed">
-              اختاري منتج واحد أو الروتين الكامل بثمن أفضل.
-            </p>
-          </div>
+          <div className="overflow-hidden rounded-card border border-gold/40 bg-ivory shadow-card">
+            <div className="bg-cocoa text-ivory text-center py-2.5 px-4 text-sm font-bold">
+              الأكثر طلباً — باك OXIPRIME الكامل · توفري {saving} درهم
+            </div>
 
-          <div className="bg-ivory border border-gold/40 rounded-card p-6 mb-8 text-center">
-            <h2 className="text-xl font-bold text-cocoa mb-2">
-              {bundleProduct.nameAr}
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              <Link
+                href={`/products/${bundleProduct.slug}`}
+                className="relative block aspect-[4/5] lg:aspect-auto lg:min-h-[420px] bg-gradient-to-b from-[#F4EBE0] to-champagne/20"
+                aria-label={bundleProduct.nameAr}
+              >
+                <Image
+                  src="/images/oxiprime-bundle-clear-products.webp"
+                  alt="باك OXIPRIME الكامل: شامبو، بلسم، ماسك وسيروم"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover"
+                />
+                <span className="absolute top-3 right-3 rounded-full bg-success text-ivory text-xs font-bold px-3 py-1.5">
+                  وفرّي {saving} درهم
+                </span>
+              </Link>
+
+              <div className="p-6 sm:p-8 lg:p-10 flex flex-col justify-center gap-5 text-center lg:text-right">
+                <div>
+                  <p className="text-xs font-bold text-gold mb-2 tracking-wide">
+                    العرض الأفضل
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-cocoa leading-tight">
+                    {bundleProduct.nameAr}
+                  </h2>
+                  <p className="text-sm text-secondary mt-3 leading-relaxed">
+                    شامبو + بلسم + ماسك + سيروم فباك واحد. روتين مرتب، ثمن أوضح،
+                    ودفع عند الاستلام.
+                  </p>
+                </div>
+
+                <StarRating rating={bundleProduct.rating} />
+
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+                  <span className="text-4xl font-bold text-cocoa">
+                    {formatPrice(bundleProduct.price)}
+                  </span>
+                  <span className="text-lg line-through text-muted-brown">
+                    {formatPrice(bundleProduct.compareAtPrice!)}
+                  </span>
+                </div>
+
+                <ul className="space-y-2 text-sm text-secondary text-right">
+                  {[
+                    '4 منتجات روتين متكامل',
+                    'نتيجة أوضح من منتج بوحدو',
+                    'تأكيد بالهاتف · دفع عند الاستلام',
+                  ].map((point) => (
+                    <li
+                      key={point}
+                      className="flex items-start gap-2 justify-end lg:justify-start"
+                    >
+                      <span>{point}</span>
+                      <span className="text-success font-bold shrink-0">✓</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <AddToCartButton
+                    product={bundleCartItem}
+                    className="w-full bg-cocoa text-ivory py-4 px-6 font-bold rounded-btn hover:bg-espresso transition-colors"
+                  >
+                    أضيفي الباك — {formatPrice(bundleProduct.price)}
+                  </AddToCartButton>
+                  <Link
+                    href={`/products/${bundleProduct.slug}`}
+                    className="w-full border border-cocoa text-cocoa py-4 px-6 font-bold rounded-btn text-center hover:bg-cocoa/5 transition-colors"
+                  >
+                    شوفي التفاصيل
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Individual products */}
+      <section className="px-4 pb-8">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-cocoa">
+              أو اختاري منتج بوحدو
             </h2>
-            <p className="text-2xl font-bold text-cocoa mb-4">
-              {formatPrice(bundleProduct.price)}
+            <p className="text-sm text-muted-brown mt-2">
+              متوفر فردياً — النتيجة أوضح مع الروتين الكامل
             </p>
-            <AddToCartButton
-              product={bundleCartItem}
-              className="bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn"
-            >
-              أضيفي الروتين الكامل
-            </AddToCartButton>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {products.map((product) => (
               <div
                 key={product.id}
@@ -51,23 +139,23 @@ export default function CollectionPage() {
               >
                 <Link
                   href={`/products/${product.slug}`}
-                  className="block aspect-[4/5] relative p-4 bg-gradient-to-b from-background to-champagne/20"
+                  className="block aspect-[3/4] relative bg-gradient-to-b from-background to-champagne/20"
                 >
                   <Image
                     src={getListImage(product)}
                     alt={product.nameAr}
                     fill
-                    sizes="(max-width: 640px) 50vw, 25vw"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     loading="lazy"
-                    className="object-contain p-3"
+                    className="object-cover"
                   />
                 </Link>
-                <div className="p-3 flex flex-col gap-2 flex-1">
+                <div className="p-4 flex flex-col gap-2 flex-1">
                   <StarRating rating={product.rating} />
                   <Link href={`/products/${product.slug}`}>
-                    <h2 className="font-bold text-xs text-cocoa leading-snug">
+                    <h3 className="font-bold text-sm text-cocoa leading-snug hover:text-gold transition-colors">
                       {product.nameAr}
-                    </h2>
+                    </h3>
                   </Link>
                   <span className="font-bold text-sm text-cocoa">
                     {formatPrice(product.price)}

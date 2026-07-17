@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Phone, Mail, MapPin, Send } from 'lucide-react';
+import { getWhatsAppHref, siteConfig } from '@/lib/site';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -60,16 +61,20 @@ export default function ContactPage() {
               {
                 icon: Phone,
                 title: 'الهاتف / واتساب',
-                value: '+212 6 00 00 00 00',
+                value: siteConfig.phoneDisplay,
                 note: 'من الإثنين إلى السبت (9ص - 6م)',
-                dir: 'ltr',
+                dir: 'ltr' as const,
+                href: getWhatsAppHref(
+                  'السلام عليكم، بغيت معلومات من تاجكِ.',
+                ),
               },
               {
                 icon: Mail,
                 title: 'البريد الإلكتروني',
-                value: 'contact@oxiprime.store',
+                value: siteConfig.email,
                 note: 'نرد خلال 24 ساعة',
                 dir: undefined,
+                href: `mailto:${siteConfig.email}`,
               },
               {
                 icon: MapPin,
@@ -77,8 +82,9 @@ export default function ContactPage() {
                 value: 'المغرب',
                 note: 'توصيل في جميع المدن',
                 dir: undefined,
+                href: undefined,
               },
-            ].map(({ icon: Icon, title, value, note, dir }) => (
+            ].map(({ icon: Icon, title, value, note, dir, href }) => (
               <div
                 key={title}
                 className="bg-ivory rounded-card border border-champagne/30 p-5 flex items-start gap-4"
@@ -88,16 +94,39 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="font-bold text-sm text-cocoa">{title}</p>
-                  <p
-                    className="text-sm text-secondary mt-1 font-sans"
-                    dir={dir as 'ltr' | 'rtl' | undefined}
-                  >
-                    {value}
-                  </p>
+                  {href ? (
+                    <a
+                      href={href}
+                      target={href.startsWith('http') ? '_blank' : undefined}
+                      rel={
+                        href.startsWith('http')
+                          ? 'noopener noreferrer'
+                          : undefined
+                      }
+                      className="text-sm text-secondary mt-1 font-sans hover:text-cocoa underline-offset-2 hover:underline block"
+                      dir={dir}
+                    >
+                      {value}
+                    </a>
+                  ) : (
+                    <p className="text-sm text-secondary mt-1" dir={dir}>
+                      {value}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-brown mt-0.5">{note}</p>
                 </div>
               </div>
             ))}
+            <a
+              href={getWhatsAppHref(
+                'السلام عليكم، بغيت نطلب / نسأل على روتين OXIPRIME.',
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center bg-[#25D366] text-white py-3.5 font-bold rounded-btn hover:bg-[#1ebe59] transition-colors text-sm"
+            >
+              راسلينا على واتساب
+            </a>
           </div>
 
           {/* Form */}
