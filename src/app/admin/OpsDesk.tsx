@@ -40,6 +40,7 @@ import {
   formatAdminDate,
   patchAdminOrder,
   shipAdminOrder,
+  syncOzonExpress,
   telHref,
   timeAgo,
 } from '@/lib/admin';
@@ -774,21 +775,48 @@ export default function OpsDesk() {
                 className="min-w-[180px] flex-1 p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
               />
               {mode === 'ship' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const qs = new URLSearchParams({
-                      token,
-                      template: courier,
-                      status: 'CONFIRMED,READY_TO_SHIP',
-                    });
-                    window.location.href = `/api/admin/orders/export/courier?${qs}`;
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm font-bold"
-                >
-                  <Download className="w-4 h-4" />
-                  CSV
-                </button>
+                <>
+                  <button
+                    type="button"
+                    disabled={busy || !ozoneReady}
+                    onClick={() => {
+                      if (!token) return;
+                      void (async () => {
+                        setBusy(true);
+                        setError('');
+                        try {
+                          await syncOzonExpress(token);
+                          void load(token, true);
+                        } catch (err) {
+                          setError(
+                            err instanceof Error ? err.message : 'فشل المزامنة',
+                          );
+                        } finally {
+                          setBusy(false);
+                        }
+                      })();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#c45c26] text-white text-sm font-bold disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    تحديث Ozone
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const qs = new URLSearchParams({
+                        token,
+                        template: courier,
+                        status: 'CONFIRMED,READY_TO_SHIP',
+                      });
+                      window.location.href = `/api/admin/orders/export/courier?${qs}`;
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm font-bold"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -932,11 +960,13 @@ export default function OpsDesk() {
                           {o.status_label}
                         </td>
                         <td className="p-2.5 text-xs border-l border-[#dde8d8]">
-                          {o.tracking_number
-                            ? o.tracking_number
-                            : o.follow_up_at
-                              ? formatAdminDate(o.follow_up_at)
-                              : '—'}
+                          {o.courier_status
+                            ? o.courier_status
+                            : o.tracking_number
+                              ? o.tracking_number
+                              : o.follow_up_at
+                                ? formatAdminDate(o.follow_up_at)
+                                : '—'}
                         </td>
                         <td className="p-2">
                           <button
@@ -1024,6 +1054,14 @@ export default function OpsDesk() {
                   <p>
                     <span className="text-[#6a5648]">Tracking: </span>
                     {active.tracking_number}
+                  </p>
+                ) : null}
+                {active.courier_status ? (
+                  <p>
+                    <span className="text-[#6a5648]">Statut Ozone: </span>
+                    <span className="font-bold text-[#c45c26]">
+                      {active.courier_status}
+                    </span>
                   </p>
                 ) : null}
                 <label className="block">

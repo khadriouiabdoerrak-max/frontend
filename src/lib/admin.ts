@@ -15,6 +15,8 @@ export type AdminOrder = {
   cancel_reason?: string;
   tracking_number?: string;
   courier_name?: string;
+  courier_status?: string;
+  courier_synced_at?: string | null;
   follow_up_at?: string | null;
   status_changed_at?: string | null;
   days_open?: number;
@@ -134,6 +136,22 @@ export async function patchAdminOrder(
   const data = await res.json();
   if (!res.ok) throw new Error(data?.detail || 'فشل تحديث الحالة');
   return data as AdminOrder;
+}
+
+export async function syncOzonExpress(token: string) {
+  const res = await fetch('/api/admin/couriers/ozonexpress/sync', {
+    method: 'POST',
+    headers: { 'X-Admin-Token': token },
+    cache: 'no-store',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || data?.message || 'فشل المزامنة');
+  return data as {
+    ok: boolean;
+    message?: string;
+    checked?: number;
+    updated?: number;
+  };
 }
 
 export async function shipAdminOrder(
