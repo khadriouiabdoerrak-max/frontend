@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Tajouki Ops — simple call console.
- * One order in focus. Call / WhatsApp. Confirm · No answer · Cancel. Next order.
+ * Tajouki Ops — لوحة · تأكيد · شحن · كلشي
+ * Board for counts. Confirm desk for calls. Ship desk for courier + tracking.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -32,6 +32,7 @@ import {
   CANCEL_REASONS,
   COURIER_PREF_KEY,
   AdminOrder,
+  AdminStats,
   buildCourierCopyLine,
   copyText,
   fetchAdminOrders,
@@ -42,9 +43,21 @@ import {
   timeAgo,
 } from '@/lib/admin';
 
-type Mode = 'confirm' | 'ship' | 'all';
+type Mode = 'board' | 'confirm' | 'ship' | 'all';
+
+/** Soft filter from board tiles (cleared when switching tabs manually). */
+type StatusFocus =
+  | 'PENDING_CONFIRMATION'
+  | 'NO_ANSWER'
+  | 'CONFIRMED'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'RETURNED'
+  | 'CANCELLED'
+  | null;
 
 const MODES: { id: Mode; label: string }[] = [
+  { id: 'board', label: 'لوحة' },
   { id: 'confirm', label: 'تأكيد' },
   { id: 'ship', label: 'شحن' },
   { id: 'all', label: 'كلشي' },
@@ -112,24 +125,55 @@ function phoneRisk(orders: AdminOrder[], phone: string) {
   return { cancelled, returned, risky: cancelled + returned >= 2 };
 }
 
+function parseMode(tab: string | null): Mode {
+  if (tab === 'ship' || tab === 'shipping') return 'ship';
+  if (tab === 'all' || tab === 'monitor' || tab === 'sales') return 'all';
+  if (tab === 'confirm' || tab === 'confirmation') return 'confirm';
+  return 'board';
+}
+
+function modeQuery(m: Mode) {
+  if (m === 'confirm') return 'confirm';
+  if (m === 'ship') return 'ship';
+  if (m === 'all') return 'all';
+  return 'board';
+}
+
+function focusLabel(f: StatusFocus): string {
+  switch (f) {
+    case 'PENDING_CONFIRMATION':
+      return 'بانتظار التأكيد';
+    case 'NO_ANSWER':
+      return 'ما جاوبش';
+    case 'CONFIRMED':
+      return 'مؤكَّد / جاهز للشحن';
+    case 'SHIPPED':
+      return 'فالطريق';
+    case 'DELIVERED':
+      return 'تسلّم';
+    case 'RETURNED':
+      return 'مرتجع';
+    case 'CANCELLED':
+      return 'ملغي';
+    default:
+      return '';
+  }
+}
+
 export default function OpsDesk() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const initial: Mode =
-    tabParam === 'ship' || tabParam === 'shipping'
-      ? 'ship'
-      : tabParam === 'all' || tabParam === 'monitor' || tabParam === 'sales'
-        ? 'all'
-        : 'confirm';
+  const initial = parseMode(searchParams.get('tab'));
 
   const [token, setToken] = useState('');
   const [pin, setPin] = useState('');
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [mode, setMode] = useState<Mode>(initial);
+  const [statusFocus, setStatusFocus] = useState<StatusFocus>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState('');
@@ -142,12 +186,18 @@ export default function OpsDesk() {
   const knownNew = useRef<Set<string>>(new Set());
   const primed = useRef(false);
 
-  const goMode = (m: Mode) => {
+  const goMode = (m: Mode, clearFocus = true) => {
     setMode(m);
     setShowCancel(false);
-    const q =
-      m === 'confirm' ? 'confirm' : m === 'ship' ? 'ship' : 'all';
-    router.replace(`/admin?tab=${q}`, { scroll: false });
+    if (clearFocus) setStatusFocus(null);
+    router.replace(`/admin?tab=${modeQuery(m)}`, { scroll: false });
+  };
+
+  const openFromBoard = (focus: StatusFocus, desk: Mode) => {
+    setStatusFocus(focus);
+    setMode(desk);
+    setShowCancel(false);
+    router.replace(`/admin?tab=${modeQuery(desk)}`, { scroll: false });
   };
 
   const load = useCallback(async (secret: string, silent = false) => {
@@ -165,12 +215,14 @@ export default function OpsDesk() {
       } else primed.current = true;
       knownNew.current = new Set(freshIds);
       setOrders(next);
+      if (data.stats) setStats(data.stats);
       setToken(secret);
       sessionStorage.setItem(ADMIN_TOKEN_KEY, secret);
     } catch (err) {
       if (!silent) {
         setToken('');
         setOrders([]);
+        setStats(null);
         sessionStorage.removeItem(ADMIN_TOKEN_KEY);
       }
       setError(err instanceof Error ? err.message : 'خطأ');
@@ -194,27 +246,55 @@ export default function OpsDesk() {
     return () => window.clearInterval(id);
   }, [token, load]);
 
-  const confirmQueue = useMemo(
-    () => [...orders.filter(isConfirm)].sort((a, b) => urgency(b) - urgency(a)),
-    [orders],
-  );
+  const counts = useMemo(() => {
+    const by = (s: string) => orders.filter((o) => o.status === s).length;
+    return {
+      today: stats?.today ?? 0,
+      total: stats?.total ?? orders.length,
+      pending: by('PENDING_CONFIRMATION'),
+      noAnswer: by('NO_ANSWER'),
+      confirmed: by('CONFIRMED') + by('READY_TO_SHIP'),
+      shipped: by('SHIPPED'),
+      delivered: by('DELIVERED'),
+      returned: by('RETURNED'),
+      cancelled: by('CANCELLED'),
+    };
+  }, [orders, stats]);
 
-  const shipQueue = useMemo(
-    () =>
-      [...orders.filter(isShip)].sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      ),
-    [orders],
-  );
+  const confirmQueue = useMemo(() => {
+    let list = orders.filter(isConfirm);
+    if (statusFocus === 'PENDING_CONFIRMATION') {
+      list = list.filter((o) => o.status === 'PENDING_CONFIRMATION');
+    } else if (statusFocus === 'NO_ANSWER') {
+      list = list.filter((o) => o.status === 'NO_ANSWER');
+    }
+    return [...list].sort((a, b) => urgency(b) - urgency(a));
+  }, [orders, statusFocus]);
+
+  const shipQueue = useMemo(() => {
+    let list = orders.filter(isShip);
+    if (statusFocus === 'CONFIRMED') {
+      list = list.filter(
+        (o) => o.status === 'CONFIRMED' || o.status === 'READY_TO_SHIP',
+      );
+    } else if (statusFocus === 'SHIPPED') {
+      list = list.filter((o) => o.status === 'SHIPPED');
+    }
+    return [...list].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [orders, statusFocus]);
 
   const queue = mode === 'ship' ? shipQueue : confirmQueue;
-  const hotCount = confirmQueue.filter(
-    (o) => minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER',
-  ).length;
+  const hotCount = orders
+    .filter(isConfirm)
+    .filter(
+      (o) => minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER',
+    ).length;
 
   useEffect(() => {
-    if (mode === 'all') return;
+    if (mode === 'all' || mode === 'board') return;
     if (!queue.length) {
       setActiveId(null);
       return;
@@ -295,16 +375,25 @@ export default function OpsDesk() {
   };
 
   const filteredAll = useMemo(() => {
-    if (!query.trim()) return orders;
+    let list = orders;
+    if (
+      statusFocus === 'DELIVERED' ||
+      statusFocus === 'RETURNED' ||
+      statusFocus === 'CANCELLED'
+    ) {
+      list = list.filter((o) => o.status === statusFocus);
+    }
+    if (!query.trim()) return list;
     const q = query.trim().toLowerCase();
-    return orders.filter(
+    return list.filter(
       (o) =>
         o.customer_name.toLowerCase().includes(q) ||
         o.city.toLowerCase().includes(q) ||
         o.phone.includes(q) ||
-        o.order_number.toLowerCase().includes(q),
+        o.order_number.toLowerCase().includes(q) ||
+        o.status_label.toLowerCase().includes(q),
     );
-  }, [orders, query]);
+  }, [orders, query, statusFocus]);
 
   if (booting) {
     return (
@@ -327,7 +416,7 @@ export default function OpsDesk() {
           <div className="text-center space-y-1">
             <Lock className="w-6 h-6 mx-auto text-[#2a1810]" />
             <h1 className="text-xl font-bold text-[#2a1810]">تاجكِ تشغيل</h1>
-            <p className="text-sm text-[#6a5648]">تأكيد الطلبات بالهاتف</p>
+            <p className="text-sm text-[#6a5648]">لوحة · تأكيد · شحن</p>
           </div>
           <input
             type="password"
@@ -353,22 +442,103 @@ export default function OpsDesk() {
   }
 
   const risk = active ? phoneRisk(orders, active.phone) : null;
+  const shipReady = shipQueue.filter((o) => o.status !== 'SHIPPED').length;
+
+  const boardTiles: {
+    key: string;
+    label: string;
+    value: number;
+    focus: StatusFocus;
+    desk: Mode;
+    hint?: string;
+  }[] = [
+    {
+      key: 'pending',
+      label: 'بانتظار التأكيد',
+      value: counts.pending,
+      focus: 'PENDING_CONFIRMATION',
+      desk: 'confirm',
+    },
+    {
+      key: 'no_answer',
+      label: 'ما جاوبش',
+      value: counts.noAnswer,
+      focus: 'NO_ANSWER',
+      desk: 'confirm',
+    },
+    {
+      key: 'confirmed',
+      label: 'مؤكَّد',
+      value: counts.confirmed,
+      focus: 'CONFIRMED',
+      desk: 'ship',
+      hint: 'جاهز للشحن',
+    },
+    {
+      key: 'shipped',
+      label: 'فالطريق',
+      value: counts.shipped,
+      focus: 'SHIPPED',
+      desk: 'ship',
+    },
+    {
+      key: 'delivered',
+      label: 'تسلّم',
+      value: counts.delivered,
+      focus: 'DELIVERED',
+      desk: 'all',
+    },
+    {
+      key: 'returned',
+      label: 'مرتجع',
+      value: counts.returned,
+      focus: 'RETURNED',
+      desk: 'all',
+    },
+    {
+      key: 'cancelled',
+      label: 'ملغي',
+      value: counts.cancelled,
+      focus: 'CANCELLED',
+      desk: 'all',
+    },
+  ];
 
   return (
     <div className="min-h-[100dvh] bg-[#f5f0ea] text-[#2a1810]">
-      {/* Top */}
       <header className="sticky top-0 z-20 border-b border-[#e6d9cc] bg-[#f5f0ea]/95 backdrop-blur">
         <div className="mx-auto max-w-5xl px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <h1 className="font-bold text-lg shrink-0">تاجكِ تشغيل</h1>
-            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
-              {confirmQueue.length} فالطابور
-            </span>
-            {hotCount > 0 ? (
-              <span className="text-sm bg-amber-100 border border-amber-300 text-amber-950 rounded-full px-3 py-1 tabular-nums">
-                {hotCount} مستعجل
+            {mode === 'board' ? (
+              <>
+                <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+                  {counts.today} اليوم
+                </span>
+                <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+                  {counts.total} الكل
+                </span>
+              </>
+            ) : mode === 'confirm' ? (
+              <>
+                <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+                  {confirmQueue.length} فالطابور
+                </span>
+                {hotCount > 0 ? (
+                  <span className="text-sm bg-amber-100 border border-amber-300 text-amber-950 rounded-full px-3 py-1 tabular-nums">
+                    {hotCount} مستعجل
+                  </span>
+                ) : null}
+              </>
+            ) : mode === 'ship' ? (
+              <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+                {shipReady} للشحن
               </span>
-            ) : null}
+            ) : (
+              <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+                {filteredAll.length} طلب
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -385,6 +555,7 @@ export default function OpsDesk() {
                 sessionStorage.removeItem(ADMIN_TOKEN_KEY);
                 setToken('');
                 setOrders([]);
+                setStats(null);
               }}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e6d9cc] text-sm text-[#6a5648]"
             >
@@ -408,10 +579,8 @@ export default function OpsDesk() {
                 }`}
               >
                 {m.label}
-                {m.id === 'confirm' ? ` (${confirmQueue.length})` : ''}
-                {m.id === 'ship'
-                  ? ` (${shipQueue.filter((o) => o.status !== 'SHIPPED').length})`
-                  : ''}
+                {m.id === 'confirm' ? ` (${counts.pending + counts.noAnswer})` : ''}
+                {m.id === 'ship' ? ` (${shipReady})` : ''}
               </button>
             ))}
           </div>
@@ -424,10 +593,85 @@ export default function OpsDesk() {
         </p>
       ) : null}
 
+      {/* Board */}
+      {mode === 'board' && (
+        <div className="mx-auto max-w-5xl px-3 py-6 space-y-6">
+          <div>
+            <h2 className="text-xl font-bold">خط الطلبات</h2>
+            <p className="text-sm text-[#6a5648] mt-1">
+              اضغطي على أي رقم باش تفتحي المكتب المناسب.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4 sm:col-span-1">
+              <p className="text-xs text-[#6a5648]">دخلو اليوم</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">
+                {counts.today}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
+              <p className="text-xs text-[#6a5648]">الكل</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">
+                {counts.total}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {boardTiles.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => openFromBoard(t.focus, t.desk)}
+                className="text-right rounded-2xl border border-[#e6d9cc] bg-white p-4 hover:border-[#2a1810] transition-colors"
+              >
+                <p className="text-xs text-[#6a5648]">{t.label}</p>
+                {t.hint ? (
+                  <p className="text-[11px] text-[#8a7464]">{t.hint}</p>
+                ) : null}
+                <p className="text-3xl font-bold tabular-nums mt-2">{t.value}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => goMode('confirm')}
+              className="px-5 py-3 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
+            >
+              فتح مكتب التأكيد
+            </button>
+            <button
+              type="button"
+              onClick={() => goMode('ship')}
+              className="px-5 py-3 rounded-xl border border-[#2a1810] font-bold text-sm"
+            >
+              فتح مكتب الشحن
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Confirm / Ship */}
       {(mode === 'confirm' || mode === 'ship') && (
         <div className="mx-auto max-w-5xl px-3 py-4">
-          {/* Mobile queue strip */}
+          {statusFocus && focusLabel(statusFocus) ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
+                فلتر: {focusLabel(statusFocus)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setStatusFocus(null)}
+                className="text-[#6a5648] underline"
+              >
+                إزالة الفلتر
+              </button>
+            </div>
+          ) : null}
+
           <div className="lg:hidden flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
             {queue.map((o) => (
               <button
@@ -449,7 +693,6 @@ export default function OpsDesk() {
           </div>
 
           <div className="grid lg:grid-cols-[240px_1fr] gap-4 items-start">
-            {/* Desktop queue */}
             <aside className="hidden lg:flex flex-col rounded-2xl border border-[#e6d9cc] bg-white overflow-hidden max-h-[calc(100dvh-180px)]">
               <div className="px-3 py-2 border-b border-[#e6d9cc] text-sm font-bold bg-[#faf6f1]">
                 الطابور
@@ -501,7 +744,6 @@ export default function OpsDesk() {
               </div>
             </aside>
 
-            {/* Focus card */}
             <section className="rounded-2xl border border-[#e6d9cc] bg-white min-h-[480px]">
               {!active ? (
                 <div className="flex items-center justify-center min-h-[480px] text-[#6a5648] text-sm p-8 text-center">
@@ -682,7 +924,6 @@ export default function OpsDesk() {
                   </div>
                 </div>
               ) : (
-                /* Ship focus */
                 <div className="p-5 sm:p-8 space-y-5">
                   <div className="flex flex-wrap justify-between gap-3">
                     <div>
@@ -808,9 +1049,22 @@ export default function OpsDesk() {
         </div>
       )}
 
-      {/* All / monitor */}
       {mode === 'all' && (
         <div className="mx-auto max-w-5xl px-3 py-4 space-y-3">
+          {statusFocus && focusLabel(statusFocus) ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
+                فلتر: {focusLabel(statusFocus)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setStatusFocus(null)}
+                className="text-[#6a5648] underline"
+              >
+                إزالة الفلتر
+              </button>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <input
               value={query}
