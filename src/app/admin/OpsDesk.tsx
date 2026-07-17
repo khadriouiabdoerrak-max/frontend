@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import {
   buildCallCenterConfirmMessage,
+  buildConfirmedWhatsAppMessage,
+  buildShippedWhatsAppMessage,
   customerWhatsAppHref,
 } from '@/lib/whatsapp';
 import {
@@ -38,12 +40,15 @@ import {
   copyText,
   fetchAdminOrders,
   formatAdminDate,
+  hasRealTracking,
   patchAdminOrder,
   shipAdminOrder,
   syncOzonExpress,
   telHref,
   timeAgo,
 } from '@/lib/admin';
+import { CitySelect } from '@/components/ui/CitySelect';
+import { STALE_SHIP_DAYS } from '@/lib/cities';
 
 type Mode = 'board' | 'orders' | 'ship';
 
@@ -56,6 +61,7 @@ type PipeFilter =
   | 'reporte'
   | 'confirmed'
   | 'shipped'
+  | 'stale'
   | 'delivered'
   | 'returned'
   | 'cancelled';
@@ -128,6 +134,15 @@ function isShipQueue(o: AdminOrder) {
     o.status === 'READY_TO_SHIP' ||
     o.status === 'SHIPPED'
   );
+}
+
+function isStaleShip(o: AdminOrder) {
+  if (o.status !== 'SHIPPED') return false;
+  const base = o.shipped_at || o.created_at;
+  const days = Math.floor(
+    (Date.now() - new Date(base).getTime()) / 86400000,
+  );
+  return days >= STALE_SHIP_DAYS;
 }
 
 function stageOf(o: AdminOrder): PipeFilter {
@@ -240,6 +255,7 @@ export default function OpsDesk() {
   const [shipAddress, setShipAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [ozoneReady, setOzoneReady] = useState(false);
+  const [shipConfirm, setShipConfirm] = useState(false);
   const [query, setQuery] = useState('');
 
   const knownNew = useRef<Set<string>>(new Set());
@@ -270,6 +286,7 @@ export default function OpsDesk() {
     setDetailOpen(false);
     setShowCancel(false);
     setShowReporte(false);
+    setShipConfirm(false);
   };
 
   const load = useCallback(async (secret: string, silent = false) => {
@@ -352,11 +369,15 @@ export default function OpsDesk() {
       reporte: 0,
       confirmed: 0,
       shipped: 0,
+      stale: 0,
       delivered: 0,
       returned: 0,
       cancelled: 0,
     };
-    for (const o of orders) c[stageOf(o)] += 1;
+    for (const o of orders) {
+      c[stageOf(o)] += 1;
+      if (isStaleShip(o)) c.stale += 1;
+    }
     return c;
   }, [orders]);
 
@@ -382,7 +403,11 @@ export default function OpsDesk() {
         );
       } else if (pipe === 'shipped') {
         list = list.filter((o) => o.status === 'SHIPPED');
+      } else if (pipe === 'stale') {
+        list = list.filter(isStaleShip);
       }
+    } else if (pipe === 'stale') {
+      list = list.filter(isStaleShip);
     } else if (pipe !== 'all') {
       list = list.filter((o) => stageOf(o) === pipe);
     }
@@ -547,6 +572,7 @@ export default function OpsDesk() {
       ? [
           { id: 'confirmed', label: 'Confirmé' },
           { id: 'shipped', label: 'En cours' },
+          { id: 'stale', label: `متأخر +${STALE_SHIP_DAYS}j` },
           { id: 'all', label: 'Tout envoi' },
         ]
       : [
@@ -558,6 +584,7 @@ export default function OpsDesk() {
           { id: 'reporte', label: 'Reporté' },
           { id: 'confirmed', label: 'Confirmé' },
           { id: 'shipped', label: 'En cours' },
+          { id: 'stale', label: 'متأخر' },
           { id: 'delivered', label: 'Livré' },
           { id: 'returned', label: 'Retourné' },
           { id: 'cancelled', label: 'Annulé' },
@@ -582,20 +609,8 @@ export default function OpsDesk() {
       desk: 'orders',
     },
     {
-      label: 'Appel 2',
-      value: pipeCounts.appel_2,
-      filter: 'appel_2',
-      desk: 'orders',
-    },
-    {
-      label: 'Appel 3',
-      value: pipeCounts.appel_3,
-      filter: 'appel_3',
-      desk: 'orders',
-    },
-    {
-      label: 'Reporté',
-      value: pipeCounts.reporte,
+      label: 'Reporté اليوم',
+      value: stats?.reporte_due ?? pipeCounts.reporte,
       filter: 'reporte',
       desk: 'orders',
     },
@@ -612,12 +627,31 @@ export default function OpsDesk() {
       desk: 'ship',
     },
     {
+      label: 'متأخر',
+      value: stats?.stale_shipped ?? pipeCounts.stale,
+      filter: 'stale',
+      desk: 'ship',
+    },
+    {
+      label: 'Livré',
+      value: pipeCounts.delivered,
+      filter: 'delivered',
+      desk: 'orders',
+    },
+    {
       label: 'Annulé',
       value: pipeCounts.cancelled,
       filter: 'cancelled',
       desk: 'orders',
     },
   ];
+
+  const cancelTop = useMemo(() => {
+    const map = stats?.cancel_reasons || {};
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4);
+  }, [stats]);
 
   return (
     <div className="min-h-[100dvh] bg-[#f5f0ea] text-[#2a1810]">
@@ -698,17 +732,29 @@ export default function OpsDesk() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
-              <p className="text-xs text-[#6a5648]">اليوم</p>
+              <p className="text-xs text-[#6a5648]">طلبات اليوم</p>
               <p className="text-3xl font-bold tabular-nums mt-1">
                 {stats?.today ?? 0}
               </p>
             </div>
             <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
-              <p className="text-xs text-[#6a5648]">Total</p>
+              <p className="text-xs text-[#6a5648]">Livré اليوم</p>
+              <p className="text-3xl font-bold tabular-nums mt-1 text-emerald-700">
+                {stats?.today_delivered ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
+              <p className="text-xs text-[#6a5648]">Retourné اليوم</p>
+              <p className="text-3xl font-bold tabular-nums mt-1 text-red-700">
+                {stats?.today_returned ?? 0}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
+              <p className="text-xs text-[#6a5648]">Annulé اليوم</p>
               <p className="text-3xl font-bold tabular-nums mt-1">
-                {orders.length}
+                {stats?.today_cancelled ?? 0}
               </p>
             </div>
             <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
@@ -722,6 +768,21 @@ export default function OpsDesk() {
               <p className="text-3xl font-bold tabular-nums mt-1">{shipReady}</p>
             </div>
           </div>
+          {cancelTop.length > 0 ? (
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
+              <p className="text-sm font-bold mb-2">أسباب الإلغاء</p>
+              <div className="flex flex-wrap gap-2">
+                {cancelTop.map(([reason, count]) => (
+                  <span
+                    key={reason}
+                    className="text-xs px-3 py-1.5 rounded-full bg-[#faf6f1] border border-[#e6d9cc]"
+                  >
+                    {reason}: <b>{count}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             {boardCards.map((c) => (
@@ -1066,14 +1127,16 @@ export default function OpsDesk() {
                 ) : null}
                 <label className="block">
                   <span className="text-[#6a5648] text-xs font-bold">
-                    المدينة
+                    المدينة / الحي
                   </span>
-                  <input
-                    value={shipCity}
-                    onChange={(e) => setShipCity(e.target.value)}
-                    className="mt-1 w-full p-2.5 rounded-lg border border-[#e6d9cc] bg-white"
-                    placeholder="Casablanca – Centre Ville"
-                  />
+                  <div className="mt-1">
+                    <CitySelect
+                      value={shipCity}
+                      onChange={setShipCity}
+                      allowCustom
+                      className="text-sm"
+                    />
+                  </div>
                 </label>
                 <label className="block">
                   <span className="text-[#6a5648] text-xs font-bold">
@@ -1118,7 +1181,12 @@ export default function OpsDesk() {
                 <a
                   href={customerWhatsAppHref(
                     active.phone,
-                    buildCallCenterConfirmMessage(active),
+                    isConfirmQueue(active)
+                      ? buildCallCenterConfirmMessage(active)
+                      : active.status === 'SHIPPED' ||
+                          hasRealTracking(active)
+                        ? buildShippedWhatsAppMessage(active)
+                        : buildConfirmedWhatsAppMessage(active),
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1128,6 +1196,20 @@ export default function OpsDesk() {
                   WhatsApp
                 </a>
               </div>
+              {hasRealTracking(active) ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await copyText(active.tracking_number || '');
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1200);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#c45c26] text-[#c45c26] font-bold text-sm"
+                >
+                  <Copy className="w-4 h-4" />
+                  {copied ? 'تم نسخ التتبع' : 'نسخ رقم التتبع'}
+                </button>
+              ) : null}
 
               {isConfirmQueue(active) && !showCancel && !showReporte ? (
                 <div className="space-y-2">
@@ -1305,22 +1387,58 @@ export default function OpsDesk() {
                     placeholder="N° tracking (يدوي)"
                     className="w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
                   />
-                  <button
-                    type="button"
-                    disabled={busy || !ozoneReady}
-                    onClick={() => void doShip(active.order_number, true)}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#c45c26] text-white font-bold disabled:opacity-50"
-                    title={
-                      ozoneReady
-                        ? 'إنشاء طرد فـ OzonExpress تلقائياً'
-                        : 'زيد OZONEXPRESS_ID و API_KEY فـ EasyPanel'
-                    }
-                  >
-                    <Truck className="w-4 h-4" />
-                    {ozoneReady
-                      ? 'إرسال إلى OzonExpress'
-                      : 'OzonExpress غير مضبوط'}
-                  </button>
+                  {hasRealTracking(active) ? (
+                    <p className="text-sm text-center text-[#c45c26] font-bold bg-[#fff7f0] border border-[#f0d0b8] rounded-xl p-3">
+                      تصيفط من قبل — {active.tracking_number}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy || !ozoneReady}
+                      onClick={() => setShipConfirm(true)}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#c45c26] text-white font-bold disabled:opacity-50"
+                    >
+                      <Truck className="w-4 h-4" />
+                      {ozoneReady
+                        ? 'إرسال إلى OzonExpress'
+                        : 'OzonExpress غير مضبوط'}
+                    </button>
+                  )}
+                  {shipConfirm ? (
+                    <div className="rounded-xl border-2 border-[#c45c26] bg-[#fff7f0] p-3 space-y-2 text-sm">
+                      <p className="font-bold">تأكيد الإرسال؟</p>
+                      <p>
+                        {active.customer_name} · {active.phone}
+                      </p>
+                      <p>
+                        {shipCity || active.city} —{' '}
+                        {shipAddress || active.address}
+                      </p>
+                      <p className="font-bold tabular-nums">
+                        {active.total_amount} DH COD
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShipConfirm(false)}
+                          className="py-2 rounded-lg border border-[#e6d9cc] font-bold"
+                        >
+                          إلغاء
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setShipConfirm(false);
+                            void doShip(active.order_number, true);
+                          }}
+                          className="py-2 rounded-lg bg-[#c45c26] text-white font-bold"
+                        >
+                          نعم، إرسال
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     disabled={busy}
@@ -1348,6 +1466,20 @@ export default function OpsDesk() {
 
               {active.status === 'SHIPPED' && (
                 <div className="space-y-2">
+                  {hasRealTracking(active) ? (
+                    <a
+                      href={customerWhatsAppHref(
+                        active.phone,
+                        buildShippedWhatsAppMessage(active),
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      واتساب التتبع للزبونة
+                    </a>
+                  ) : null}
                   <button
                     type="button"
                     disabled={busy}

@@ -59,6 +59,48 @@ export function buildCallCenterConfirmMessage(order: {
   ].join('\n');
 }
 
+export function buildConfirmedWhatsAppMessage(order: {
+  order_number: string;
+  customer_name: string;
+  total_amount: number;
+}): string {
+  return [
+    `السلام عليكم ${order.customer_name}،`,
+    `طلبك رقم ${order.order_number} تأكّد بنجاح ✅`,
+    `المجموع: ${order.total_amount} درهم — الدفع عند الاستلام.`,
+    'غادي نصيفطوه قريب. شكراً لثقتك تاجكِ.',
+  ].join('\n');
+}
+
+export function buildShippedWhatsAppMessage(order: {
+  order_number: string;
+  customer_name: string;
+  tracking_number?: string;
+}): string {
+  const track = (order.tracking_number || '').trim();
+  const lines = [
+    `السلام عليكم ${order.customer_name}،`,
+    `طلبك رقم ${order.order_number} تصيفط ✅`,
+  ];
+  if (track && !track.startsWith('MAN-')) {
+    lines.push(`رقم التتبع: ${track}`);
+    lines.push('تقدري تتبعيه من موقع OzonExpress.');
+  }
+  lines.push('الله يسهّل التوصيل 🌿');
+  return lines.join('\n');
+}
+
+export function buildDeliveredWhatsAppMessage(order: {
+  order_number: string;
+  customer_name: string;
+}): string {
+  return [
+    `السلام عليكم ${order.customer_name}،`,
+    `نتمنى يكون طلبك ${order.order_number} عجبك.`,
+    'شكراً لثقتك تاجكِ — إلا بغيتي مساعدة حنا هنا.',
+  ].join('\n');
+}
+
 export function cartWhatsAppHref(
   items: WhatsAppCartItem[],
   total: number,

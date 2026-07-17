@@ -29,20 +29,35 @@ export type AdminOrder = {
 
 export type AdminStats = {
   today: number;
+  today_confirmed?: number;
+  today_shipped?: number;
+  today_delivered?: number;
+  today_returned?: number;
+  today_cancelled?: number;
   en_attente?: number;
   appel_1?: number;
   appel_2?: number;
   appel_3?: number;
   reporte?: number;
+  reporte_due?: number;
   pending: number;
   confirmed: number;
   ready_to_ship: number;
   shipped: number;
+  stale_shipped?: number;
   delivered: number;
   returned: number;
   cancelled: number;
+  cancel_reasons?: Record<string, number>;
   total: number;
 };
+
+export function hasRealTracking(order?: {
+  tracking_number?: string | null;
+} | null): boolean {
+  const t = (order?.tracking_number || '').trim();
+  return Boolean(t) && !t.toUpperCase().startsWith('MAN-');
+}
 
 export const ADMIN_TOKEN_KEY = 'oxiprime-admin-token';
 export const COURIER_PREF_KEY = 'oxiprime-default-courier';

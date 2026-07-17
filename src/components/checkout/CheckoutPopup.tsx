@@ -11,7 +11,7 @@ import { calcOrderTotal } from '@/lib/shipping';
 import { FREE_SHIPPING_THRESHOLD } from '@/lib/site';
 import { cartWhatsAppHref } from '@/lib/whatsapp';
 import { getListImage, getProductBySlug } from '@/lib/products';
-import { CHECKOUT_CITIES } from '@/lib/cities';
+import { CitySelect } from '@/components/ui/CitySelect';
 
 function itemImage(slug: string, fallback?: string) {
   const product = getProductBySlug(slug);
@@ -320,25 +320,17 @@ export function CheckoutPopup() {
 
               <div>
                 <label className="block text-sm font-bold text-cocoa mb-1.5 text-right">
-                  المدينة
+                  المدينة / الحي
                 </label>
-                <select
+                <CitySelect
                   value={formData.city}
-                  onChange={(e) => {
-                    setFormData({ ...formData, city: e.target.value });
+                  onChange={(city) => {
+                    setFormData({ ...formData, city });
                     if (fieldErrors.city) {
                       setFieldErrors({ ...fieldErrors, city: undefined });
                     }
                   }}
-                  className={inputClass(fieldErrors.city)}
-                >
-                  <option value="">اختاري المدينة</option>
-                  {CHECKOUT_CITIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                />
                 {fieldErrors.city && (
                   <p className="text-xs text-error mt-1 text-right">
                     {fieldErrors.city}
