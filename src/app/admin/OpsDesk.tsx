@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Tajouki Ops Desk v2 — built like a real COD call-center console:
- * urgency queue, customer history/risk, one-call focus, keyboard shortcuts, bulk ship.
+ * Tajouki Ops — simple call console.
+ * One order in focus. Call / WhatsApp. Confirm · No answer · Cancel. Next order.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Copy,
   Download,
-  Keyboard,
   Lock,
   LogOut,
   MessageCircle,
@@ -33,7 +32,6 @@ import {
   CANCEL_REASONS,
   COURIER_PREF_KEY,
   AdminOrder,
-  AdminStats,
   buildCourierCopyLine,
   copyText,
   fetchAdminOrders,
@@ -44,37 +42,18 @@ import {
   timeAgo,
 } from '@/lib/admin';
 
-type TabId = 'confirm' | 'ship' | 'monitor';
+type Mode = 'confirm' | 'ship' | 'all';
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'confirm', label: 'للتأكيد' },
-  { id: 'ship', label: 'للشحن' },
-  { id: 'monitor', label: 'المراقبة' },
+const MODES: { id: Mode; label: string }[] = [
+  { id: 'confirm', label: 'تأكيد' },
+  { id: 'ship', label: 'شحن' },
+  { id: 'all', label: 'كلشي' },
 ];
 
 const COURIERS = [
   { id: 'generic', label: 'عام' },
   { id: 'cathedis', label: 'Cathedis' },
   { id: 'ozone', label: 'Ozone' },
-];
-
-const MONITOR_FILTERS: { id: string; label: string }[] = [
-  { id: 'ALL', label: 'الكل' },
-  { id: 'PENDING_CONFIRMATION', label: 'قيد التأكيد' },
-  { id: 'NO_ANSWER', label: 'ما جاوبش' },
-  { id: 'CONFIRMED', label: 'مؤكد' },
-  { id: 'READY_TO_SHIP', label: 'جاهز للشحن' },
-  { id: 'SHIPPED', label: 'مرسل' },
-  { id: 'DELIVERED', label: 'مسلم' },
-  { id: 'RETURNED', label: 'مرتجع' },
-  { id: 'CANCELLED', label: 'ملغى' },
-];
-
-const CALL_CHECKLIST = [
-  'تأكيد الاسم والمنتج',
-  'تأكيد الهاتف والمدينة',
-  'العنوان + علامة قريبة (مدرسة، صيدلية…)',
-  'توضيح الدفع عند الاستلام والمدة',
 ];
 
 function playChime() {
@@ -86,43 +65,39 @@ function playChime() {
     const ctx = new Ctx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 920;
-    gain.gain.value = 0.045;
     osc.connect(gain);
     gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.04;
     osc.start();
     setTimeout(() => {
       osc.stop();
       void ctx.close();
-    }, 160);
+    }, 150);
   } catch {
     /* ignore */
   }
 }
 
-function waitMinutes(iso: string) {
+function minsWaiting(iso: string) {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return 0;
   return Math.floor((Date.now() - t) / 60000);
 }
 
-function urgencyRank(o: AdminOrder) {
-  const mins = waitMinutes(o.created_at);
-  // Hot: older than 2h, or high COD, or NO_ANSWER needing callback
-  let score = mins;
-  if (o.status === 'NO_ANSWER') score += 90;
-  if (o.total_amount >= 500) score += 40;
-  if (mins >= 120) score += 80;
-  if (mins >= 240) score += 120;
-  return score;
+function urgency(o: AdminOrder) {
+  let s = minsWaiting(o.created_at);
+  if (o.status === 'NO_ANSWER') s += 100;
+  if (minsWaiting(o.created_at) >= 120) s += 80;
+  if (o.total_amount >= 500) s += 30;
+  return s;
 }
 
-function isConfirmQueue(o: AdminOrder) {
+function isConfirm(o: AdminOrder) {
   return o.status === 'PENDING_CONFIRMATION' || o.status === 'NO_ANSWER';
 }
 
-function isShipQueue(o: AdminOrder) {
+function isShip(o: AdminOrder) {
   return (
     o.status === 'CONFIRMED' ||
     o.status === 'READY_TO_SHIP' ||
@@ -130,87 +105,75 @@ function isShipQueue(o: AdminOrder) {
   );
 }
 
-function customerStats(orders: AdminOrder[], phone: string) {
+function phoneRisk(orders: AdminOrder[], phone: string) {
   const same = orders.filter((o) => o.phone === phone);
-  return {
-    total: same.length,
-    cancelled: same.filter((o) => o.status === 'CANCELLED').length,
-    returned: same.filter((o) => o.status === 'RETURNED').length,
-    delivered: same.filter((o) => o.status === 'DELIVERED').length,
-    confirmed: same.filter((o) =>
-      ['CONFIRMED', 'READY_TO_SHIP', 'SHIPPED', 'DELIVERED'].includes(o.status),
-    ).length,
-  };
+  const cancelled = same.filter((o) => o.status === 'CANCELLED').length;
+  const returned = same.filter((o) => o.status === 'RETURNED').length;
+  return { cancelled, returned, risky: cancelled + returned >= 2 };
 }
 
 export default function OpsDesk() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get('tab') as TabId) || 'confirm';
+  const tabParam = searchParams.get('tab');
+  const initial: Mode =
+    tabParam === 'ship' || tabParam === 'shipping'
+      ? 'ship'
+      : tabParam === 'all' || tabParam === 'monitor' || tabParam === 'sales'
+        ? 'all'
+        : 'confirm';
 
   const [token, setToken] = useState('');
-  const [input, setInput] = useState('');
+  const [pin, setPin] = useState('');
   const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
-  const [tab, setTab] = useState<TabId>(
-    ['confirm', 'ship', 'monitor'].includes(initialTab) ? initialTab : 'confirm',
-  );
+  const [mode, setMode] = useState<Mode>(initial);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [notesDraft, setNotesDraft] = useState('');
+  const [notes, setNotes] = useState('');
   const [showCancel, setShowCancel] = useState(false);
   const [courier, setCourier] = useState('generic');
-  const [trackingDraft, setTrackingDraft] = useState('');
+  const [tracking, setTracking] = useState('');
   const [copied, setCopied] = useState(false);
-  const [monitorQuery, setMonitorQuery] = useState('');
-  const [monitorFilter, setMonitorFilter] = useState('ALL');
-  const [selectedShip, setSelectedShip] = useState<Set<string>>(new Set());
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
-  const [showKeys, setShowKeys] = useState(false);
+  const [query, setQuery] = useState('');
 
   const knownNew = useRef<Set<string>>(new Set());
   const primed = useRef(false);
 
-  const selectTab = (id: TabId) => {
-    setTab(id);
+  const goMode = (m: Mode) => {
+    setMode(m);
     setShowCancel(false);
-    router.replace(`/admin?tab=${id}`, { scroll: false });
+    const q =
+      m === 'confirm' ? 'confirm' : m === 'ship' ? 'ship' : 'all';
+    router.replace(`/admin?tab=${q}`, { scroll: false });
   };
 
-  const loadOrders = useCallback(async (secret: string, silent = false) => {
+  const load = useCallback(async (secret: string, silent = false) => {
     if (!silent) setLoading(true);
     setError('');
     try {
       const data = await fetchAdminOrders(secret);
       const next = data.orders || [];
-      const newIds = next
+      const freshIds = next
         .filter((o) => o.status === 'PENDING_CONFIRMATION')
         .map((o) => o.order_number);
-
       if (primed.current) {
-        const fresh = newIds.filter((id) => !knownNew.current.has(id));
-        if (fresh.length > 0) {
-          playChime();
-          document.title = `(${fresh.length}) مكتب التشغيل | تاجكِ`;
-        }
-      } else {
-        primed.current = true;
-      }
-      knownNew.current = new Set(newIds);
+        const brand = freshIds.filter((id) => !knownNew.current.has(id));
+        if (brand.length) playChime();
+      } else primed.current = true;
+      knownNew.current = new Set(freshIds);
       setOrders(next);
-      setStats(data.stats || null);
       setToken(secret);
       sessionStorage.setItem(ADMIN_TOKEN_KEY, secret);
     } catch (err) {
       if (!silent) {
-        setOrders([]);
         setToken('');
+        setOrders([]);
         sessionStorage.removeItem(ADMIN_TOKEN_KEY);
       }
-      setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
+      setError(err instanceof Error ? err.message : 'خطأ');
     } finally {
       setLoading(false);
       setBooting(false);
@@ -221,129 +184,109 @@ export default function OpsDesk() {
     const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
     const pref = localStorage.getItem(COURIER_PREF_KEY);
     if (pref) setCourier(pref);
-    if (saved) void loadOrders(saved);
+    if (saved) void load(saved);
     else setBooting(false);
-  }, [loadOrders]);
+  }, [load]);
 
   useEffect(() => {
     if (!token) return;
-    const id = window.setInterval(() => void loadOrders(token, true), 15000);
+    const id = window.setInterval(() => void load(token, true), 20000);
     return () => window.clearInterval(id);
-  }, [token, loadOrders]);
+  }, [token, load]);
 
-  const confirmQueue = useMemo(() => {
-    return [...orders.filter(isConfirmQueue)].sort(
-      (a, b) => urgencyRank(b) - urgencyRank(a),
-    );
-  }, [orders]);
-
-  const shipQueue = useMemo(() => {
-    return [...orders.filter(isShipQueue)].sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-  }, [orders]);
-
-  const toShipOnly = useMemo(
-    () =>
-      shipQueue.filter(
-        (o) => o.status === 'CONFIRMED' || o.status === 'READY_TO_SHIP',
-      ),
-    [shipQueue],
+  const confirmQueue = useMemo(
+    () => [...orders.filter(isConfirm)].sort((a, b) => urgency(b) - urgency(a)),
+    [orders],
   );
 
-  const queueForTab = tab === 'ship' ? shipQueue : confirmQueue;
+  const shipQueue = useMemo(
+    () =>
+      [...orders.filter(isShip)].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      ),
+    [orders],
+  );
+
+  const queue = mode === 'ship' ? shipQueue : confirmQueue;
+  const hotCount = confirmQueue.filter(
+    (o) => minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER',
+  ).length;
 
   useEffect(() => {
-    if (tab === 'monitor') return;
-    if (queueForTab.length === 0) {
+    if (mode === 'all') return;
+    if (!queue.length) {
       setActiveId(null);
       return;
     }
-    if (!activeId || !queueForTab.some((o) => o.order_number === activeId)) {
-      setActiveId(queueForTab[0].order_number);
+    if (!activeId || !queue.some((o) => o.order_number === activeId)) {
+      setActiveId(queue[0].order_number);
     }
-  }, [queueForTab, activeId, tab]);
+  }, [queue, activeId, mode]);
 
   const active = useMemo(
-    () => orders.find((o) => o.order_number === activeId) || null,
+    () => orders.find((o) => o.order_number === activeId) ?? null,
     [orders, activeId],
   );
 
-  const activeHistory = useMemo(() => {
-    if (!active) return null;
-    return customerStats(orders, active.phone);
-  }, [active, orders]);
-
   useEffect(() => {
-    setNotesDraft(active?.notes || '');
-    setTrackingDraft(active?.tracking_number || '');
+    setNotes(active?.notes || '');
+    setTracking(active?.tracking_number || '');
     setShowCancel(false);
     setCopied(false);
-    setChecklist({});
   }, [active?.order_number]);
 
-  const pickNextAfter = (orderNumber: string, list: AdminOrder[]) => {
-    const idx = list.findIndex((o) => o.order_number === orderNumber);
-    const remaining = list.filter((o) => o.order_number !== orderNumber);
-    if (remaining.length === 0) {
+  const advance = (doneId: string, list: AdminOrder[]) => {
+    const rest = list.filter((o) => o.order_number !== doneId);
+    if (!rest.length) {
       setActiveId(null);
       return;
     }
-    const next = remaining[Math.min(Math.max(idx, 0), remaining.length - 1)];
-    setActiveId(next.order_number);
+    const idx = list.findIndex((o) => o.order_number === doneId);
+    setActiveId(rest[Math.min(Math.max(idx, 0), rest.length - 1)].order_number);
   };
 
-  const applyLocal = (updated: AdminOrder) => {
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.order_number === updated.order_number ? { ...o, ...updated } : o,
-      ),
-    );
-  };
-
-  const runPatch = useCallback(
-    async (
-      orderNumber: string,
-      body: Record<string, unknown>,
-      advanceConfirm = false,
-    ) => {
-      if (!token) return;
-      setBusy(true);
-      setError('');
-      try {
-        const updated = await patchAdminOrder(token, orderNumber, body);
-        applyLocal(updated);
-        if (advanceConfirm) pickNextAfter(orderNumber, confirmQueue);
-        void loadOrders(token, true);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'خطأ');
-      } finally {
-        setBusy(false);
-        setShowCancel(false);
-      }
-    },
-    [token, confirmQueue, loadOrders],
-  );
-
-  const runShip = async (orderNumber: string, withProvider: boolean) => {
+  const patch = async (
+    id: string,
+    body: Record<string, unknown>,
+    nextConfirm = false,
+  ) => {
     if (!token) return;
     setBusy(true);
     setError('');
     try {
-      const updated = await shipAdminOrder(token, orderNumber, {
+      const updated = await patchAdminOrder(token, id, body);
+      setOrders((prev) =>
+        prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
+      );
+      if (nextConfirm) advance(id, confirmQueue);
+      void load(token, true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطأ');
+    } finally {
+      setBusy(false);
+      setShowCancel(false);
+    }
+  };
+
+  const doShip = async (id: string) => {
+    if (!token) return;
+    setBusy(true);
+    setError('');
+    try {
+      const updated = await shipAdminOrder(token, id, {
         courier_name: courier,
-        tracking_number: trackingDraft,
-        create_with_provider: withProvider,
+        tracking_number: tracking,
+        create_with_provider: false,
       });
-      applyLocal(updated);
-      pickNextAfter(orderNumber, toShipOnly);
-      setSelectedShip((prev) => {
-        const n = new Set(prev);
-        n.delete(orderNumber);
-        return n;
-      });
-      void loadOrders(token, true);
+      setOrders((prev) =>
+        prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
+      );
+      advance(
+        id,
+        shipQueue.filter((o) => o.status !== 'SHIPPED'),
+      );
+      void load(token, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ');
     } finally {
@@ -351,177 +294,47 @@ export default function OpsDesk() {
     }
   };
 
-  const saveNotes = async () => {
-    if (!token || !active) return;
-    await runPatch(active.order_number, {
-      status: active.status,
-      notes: notesDraft,
-    });
-  };
-
-  // Keyboard shortcuts — only on confirm tab with active order
-  useEffect(() => {
-    if (!token || tab !== 'confirm' || !active || showCancel) return;
-
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (busy) return;
-
-      if (e.key === 'ArrowDown' || e.key === 'j') {
-        e.preventDefault();
-        const idx = confirmQueue.findIndex(
-          (o) => o.order_number === active.order_number,
-        );
-        const next = confirmQueue[idx + 1];
-        if (next) setActiveId(next.order_number);
-      } else if (e.key === 'ArrowUp' || e.key === 'k') {
-        e.preventDefault();
-        const idx = confirmQueue.findIndex(
-          (o) => o.order_number === active.order_number,
-        );
-        const prev = confirmQueue[idx - 1];
-        if (prev) setActiveId(prev.order_number);
-      } else if (e.key === '1') {
-        e.preventDefault();
-        void runPatch(active.order_number, { status: 'CONFIRMED' }, true);
-      } else if (e.key === '2') {
-        e.preventDefault();
-        void runPatch(
-          active.order_number,
-          {
-            status: 'NO_ANSWER',
-            notes: notesDraft || 'ما جاوبش — إعادة اتصال',
-          },
-          true,
-        );
-      } else if (e.key === '3') {
-        e.preventDefault();
-        setShowCancel(true);
-      } else if (e.key === 'c' || e.key === 'C') {
-        window.location.href = telHref(active.phone);
-      } else if (e.key === 'w' || e.key === 'W') {
-        window.open(
-          customerWhatsAppHref(
-            active.phone,
-            buildCallCenterConfirmMessage(active),
-          ),
-          '_blank',
-        );
-      }
-    };
-
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [token, tab, active, showCancel, busy, confirmQueue, notesDraft, runPatch]);
-
-  const logout = () => {
-    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-    setToken('');
-    setOrders([]);
-    setInput('');
-    document.title = 'مكتب التشغيل | تاجكِ';
-  };
-
-  const confirmRate = useMemo(() => {
-    if (!stats) return null;
-    const decided =
-      stats.confirmed +
-      stats.ready_to_ship +
-      stats.shipped +
-      stats.delivered +
-      stats.cancelled +
-      stats.returned;
-    if (decided <= 0) return null;
-    const ok =
-      stats.confirmed +
-      stats.ready_to_ship +
-      stats.shipped +
-      stats.delivered;
-    return Math.round((ok / decided) * 100);
-  }, [stats]);
-
-  const deliveryRate =
-    stats && stats.delivered + stats.returned > 0
-      ? Math.round(
-          (stats.delivered / (stats.delivered + stats.returned)) * 100,
-        )
-      : null;
-
-  const hotCount = confirmQueue.filter(
-    (o) => waitMinutes(o.created_at) >= 120 || o.status === 'NO_ANSWER',
-  ).length;
-
-  const monitorRows = useMemo(() => {
-    let list = orders;
-    if (monitorFilter !== 'ALL') {
-      list = list.filter((o) => o.status === monitorFilter);
-    }
-    if (monitorQuery.trim()) {
-      const q = monitorQuery.trim().toLowerCase();
-      list = list.filter(
-        (o) =>
-          o.city.toLowerCase().includes(q) ||
-          o.customer_name.toLowerCase().includes(q) ||
-          o.order_number.toLowerCase().includes(q) ||
-          o.phone.includes(q),
-      );
-    }
-    return list;
-  }, [orders, monitorFilter, monitorQuery]);
-
-  const toggleShipSelect = (id: string) => {
-    setSelectedShip((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  };
-
-  const copySelectedShip = async () => {
-    const lines = toShipOnly
-      .filter((o) => selectedShip.has(o.order_number))
-      .map(buildCourierCopyLine);
-    if (lines.length === 0) return;
-    await copyText(lines.join('\n'));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const filteredAll = useMemo(() => {
+    if (!query.trim()) return orders;
+    const q = query.trim().toLowerCase();
+    return orders.filter(
+      (o) =>
+        o.customer_name.toLowerCase().includes(q) ||
+        o.city.toLowerCase().includes(q) ||
+        o.phone.includes(q) ||
+        o.order_number.toLowerCase().includes(q),
+    );
+  }, [orders, query]);
 
   if (booting) {
     return (
-      <div className="min-h-[100dvh] bg-[#f3efe9] flex items-center justify-center text-[#6b5748]">
-        جاري فتح المكتب…
+      <div className="min-h-[100dvh] bg-[#f5f0ea] flex items-center justify-center text-[#6a5648]">
+        جاري الفتح…
       </div>
     );
   }
 
   if (!token) {
     return (
-      <div className="min-h-[100dvh] bg-[#f3efe9] flex items-center justify-center px-4">
+      <div className="min-h-[100dvh] bg-[#f5f0ea] flex items-center justify-center px-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void loadOrders(input.trim());
+            void load(pin.trim());
           }}
-          className="w-full max-w-sm bg-white border border-[#e5d9cc] rounded-2xl p-7 space-y-4 shadow-sm"
+          className="w-full max-w-sm bg-white border border-[#e6d9cc] rounded-2xl p-6 space-y-4"
         >
           <div className="text-center space-y-1">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#3a2418] text-[#f3efe9] mb-1">
-              <Lock className="w-5 h-5" />
-            </div>
-            <h1 className="text-xl font-bold text-[#2c1a12]">مكتب التشغيل</h1>
-            <p className="text-sm text-[#6b5748] leading-relaxed">
-              كونسول تأكيد وشحن COD — صُمّم لسرعة المكالمة وتقليل الإرجاع.
-            </p>
+            <Lock className="w-6 h-6 mx-auto text-[#2a1810]" />
+            <h1 className="text-xl font-bold text-[#2a1810]">تاجكِ تشغيل</h1>
+            <p className="text-sm text-[#6a5648]">تأكيد الطلبات بالهاتف</p>
           </div>
           <input
             type="password"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
             placeholder="رمز الدخول"
-            className="w-full p-4 border border-[#e5d9cc] rounded-xl bg-[#faf6f1] text-[#2c1a12] text-center text-lg"
+            className="w-full p-4 rounded-xl border border-[#e6d9cc] text-center text-lg bg-[#faf6f1]"
             autoFocus
           />
           {error ? (
@@ -529,139 +342,76 @@ export default function OpsDesk() {
           ) : null}
           <button
             type="submit"
-            disabled={loading || !input.trim()}
-            className="w-full bg-[#2c1a12] text-[#f3efe9] py-3.5 text-base font-bold rounded-xl disabled:opacity-50"
+            disabled={loading || !pin.trim()}
+            className="w-full py-3.5 rounded-xl bg-[#2a1810] text-white font-bold disabled:opacity-50"
           >
-            {loading ? 'جاري الدخول…' : 'دخول'}
+            دخول
           </button>
         </form>
       </div>
     );
   }
 
+  const risk = active ? phoneRisk(orders, active.phone) : null;
+
   return (
-    <div className="min-h-[100dvh] bg-[#f3efe9] text-[#2c1a12]">
-      <header className="sticky top-0 z-30 border-b border-[#e5d9cc] bg-[#f3efe9]/95 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-3 py-3 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold tracking-tight">
-                مكتب التشغيل
-              </h1>
-              <p className="text-xs text-[#6b5748]">
-                تاجكِ · أسرع تأكيد = أقل إرجاع
-                {hotCount > 0 ? (
-                  <span className="text-amber-800 font-semibold">
-                    {' '}
-                    · {hotCount} مستعجل
-                  </span>
-                ) : null}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowKeys((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e5d9cc] bg-white text-xs font-medium"
-                title="اختصارات"
-              >
-                <Keyboard className="w-4 h-4" />
-                <span className="hidden sm:inline">اختصارات</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => void loadOrders(token)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e5d9cc] bg-white text-sm font-medium"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`}
-                />
-                تحديث
-              </button>
-              <button
-                type="button"
-                onClick={logout}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e5d9cc] text-sm text-[#6b5748]"
-              >
-                <LogOut className="w-4 h-4" />
-                خروج
-              </button>
-            </div>
+    <div className="min-h-[100dvh] bg-[#f5f0ea] text-[#2a1810]">
+      {/* Top */}
+      <header className="sticky top-0 z-20 border-b border-[#e6d9cc] bg-[#f5f0ea]/95 backdrop-blur">
+        <div className="mx-auto max-w-5xl px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="font-bold text-lg shrink-0">تاجكِ تشغيل</h1>
+            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+              {confirmQueue.length} فالطابور
+            </span>
+            {hotCount > 0 ? (
+              <span className="text-sm bg-amber-100 border border-amber-300 text-amber-950 rounded-full px-3 py-1 tabular-nums">
+                {hotCount} مستعجل
+              </span>
+            ) : null}
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void load(token)}
+              className="p-2.5 rounded-xl border border-[#e6d9cc] bg-white"
+              aria-label="تحديث"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+                setToken('');
+                setOrders([]);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e6d9cc] text-sm text-[#6a5648]"
+            >
+              <LogOut className="w-4 h-4" />
+              خروج
+            </button>
+          </div>
+        </div>
 
-          {showKeys ? (
-            <div className="rounded-xl border border-[#e5d9cc] bg-white px-3 py-2 text-xs text-[#6b5748] flex flex-wrap gap-x-4 gap-y-1">
-              <span>
-                <kbd className="font-mono bg-[#f3efe9] px-1 rounded">1</kbd>{' '}
-                تأكيد
-              </span>
-              <span>
-                <kbd className="font-mono bg-[#f3efe9] px-1 rounded">2</kbd> ما
-                جاوبش
-              </span>
-              <span>
-                <kbd className="font-mono bg-[#f3efe9] px-1 rounded">3</kbd>{' '}
-                إلغاء
-              </span>
-              <span>
-                <kbd className="font-mono bg-[#f3efe9] px-1 rounded">C</kbd>{' '}
-                اتصال
-              </span>
-              <span>
-                <kbd className="font-mono bg-[#f3efe9] px-1 rounded">W</kbd>{' '}
-                واتساب
-              </span>
-              <span>
-                <kbd className="font-mono bg-[#f3efe9] px-1 rounded">↑↓</kbd>{' '}
-                الطابور
-              </span>
-            </div>
-          ) : null}
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-            {[
-              { label: 'للتأكيد', value: confirmQueue.length },
-              { label: 'مستعجل +2س', value: hotCount, warn: hotCount > 0 },
-              {
-                label: 'نسبة التأكيد',
-                value: confirmRate != null ? `${confirmRate}%` : '—',
-              },
-              { label: 'فالتوصيل', value: stats?.shipped ?? 0 },
-              {
-                label: 'نسبة التسليم',
-                value: deliveryRate != null ? `${deliveryRate}%` : '—',
-              },
-              { label: 'اليوم', value: stats?.today ?? 0 },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className={`rounded-xl border px-3 py-2 text-center ${
-                  s.warn
-                    ? 'bg-amber-50 border-amber-300'
-                    : 'bg-white border-[#e5d9cc]'
+        <div className="mx-auto max-w-5xl px-3 pb-3">
+          <div className="flex gap-1 p-1 rounded-xl bg-[#e8dfd5]">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => goMode(m.id)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-bold ${
+                  mode === m.id
+                    ? 'bg-[#2a1810] text-white'
+                    : 'text-[#5c4a3c]'
                 }`}
               >
-                <p className="text-[11px] text-[#6b5748]">{s.label}</p>
-                <p className="text-xl font-bold tabular-nums">{s.value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-1 p-1 rounded-xl bg-[#e8dfd4]">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => selectTab(t.id)}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-colors ${
-                  tab === t.id
-                    ? 'bg-[#2c1a12] text-[#f3efe9] shadow-sm'
-                    : 'text-[#5c4a3d] hover:bg-white/60'
-                }`}
-              >
-                {t.label}
-                {t.id === 'confirm' ? ` (${confirmQueue.length})` : ''}
-                {t.id === 'ship' ? ` (${toShipOnly.length})` : ''}
+                {m.label}
+                {m.id === 'confirm' ? ` (${confirmQueue.length})` : ''}
+                {m.id === 'ship'
+                  ? ` (${shipQueue.filter((o) => o.status !== 'SHIPPED').length})`
+                  : ''}
               </button>
             ))}
           </div>
@@ -669,78 +419,80 @@ export default function OpsDesk() {
       </header>
 
       {error ? (
-        <div className="mx-auto max-w-6xl px-3 pt-3">
-          <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-            {error}
-          </p>
-        </div>
+        <p className="mx-auto max-w-5xl px-3 pt-3 text-sm text-red-800">
+          {error}
+        </p>
       ) : null}
 
-      {(tab === 'confirm' || tab === 'ship') && (
-        <div className="mx-auto max-w-6xl px-3 py-4">
-          <div className="grid lg:grid-cols-[minmax(0,300px)_1fr] gap-4 items-start">
-            <aside className="rounded-2xl border border-[#e5d9cc] bg-white overflow-hidden max-h-[70vh] lg:max-h-[calc(100dvh-260px)] flex flex-col shadow-sm">
-              <div className="px-3 py-2.5 border-b border-[#e5d9cc] text-sm font-bold bg-[#faf6f1] flex items-center justify-between">
-                <span>الطابور · {queueForTab.length}</span>
-                {tab === 'confirm' ? (
-                  <span className="text-[10px] font-normal text-[#6b5748]">
-                    مرتّب بالاستعجال
-                  </span>
-                ) : null}
+      {/* Confirm / Ship */}
+      {(mode === 'confirm' || mode === 'ship') && (
+        <div className="mx-auto max-w-5xl px-3 py-4">
+          {/* Mobile queue strip */}
+          <div className="lg:hidden flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
+            {queue.map((o) => (
+              <button
+                key={o.order_number}
+                type="button"
+                onClick={() => setActiveId(o.order_number)}
+                className={`shrink-0 rounded-xl border px-3 py-2 text-right min-w-[140px] ${
+                  o.order_number === activeId
+                    ? 'bg-[#2a1810] text-white border-[#2a1810]'
+                    : 'bg-white border-[#e6d9cc]'
+                }`}
+              >
+                <p className="font-bold text-sm truncate">{o.customer_name}</p>
+                <p className="text-xs opacity-80">
+                  {o.total_amount} · {timeAgo(o.created_at)}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-[240px_1fr] gap-4 items-start">
+            {/* Desktop queue */}
+            <aside className="hidden lg:flex flex-col rounded-2xl border border-[#e6d9cc] bg-white overflow-hidden max-h-[calc(100dvh-180px)]">
+              <div className="px-3 py-2 border-b border-[#e6d9cc] text-sm font-bold bg-[#faf6f1]">
+                الطابور
               </div>
-              <div className="overflow-y-auto flex-1">
-                {queueForTab.length === 0 ? (
-                  <p className="p-8 text-sm text-[#6b5748] text-center leading-relaxed">
-                    {tab === 'confirm'
-                      ? 'الطابور فاضي — مبروك. الطلبات الجدد غادي يطيحو هنا أوتوماتيك.'
-                      : 'ما كاينش طرود جاهزة. أكّدي طلبات أولاً.'}
+              <div className="overflow-y-auto">
+                {queue.length === 0 ? (
+                  <p className="p-6 text-sm text-[#6a5648] text-center">
+                    فارغ
                   </p>
                 ) : (
-                  queueForTab.map((o) => {
-                    const selected = o.order_number === activeId;
-                    const mins = waitMinutes(o.created_at);
-                    const hot = mins >= 120 || o.status === 'NO_ANSWER';
-                    const hist = customerStats(orders, o.phone);
-                    const risky = hist.cancelled + hist.returned >= 2;
+                  queue.map((o) => {
+                    const sel = o.order_number === activeId;
+                    const hot =
+                      minsWaiting(o.created_at) >= 120 ||
+                      o.status === 'NO_ANSWER';
                     return (
                       <button
                         key={o.order_number}
                         type="button"
                         onClick={() => setActiveId(o.order_number)}
-                        className={`w-full text-right px-3 py-3 border-b border-[#f0e7dc] transition-colors ${
-                          selected
-                            ? 'bg-[#2c1a12] text-[#f3efe9]'
+                        className={`w-full text-right px-3 py-3 border-b border-[#f0e8df] ${
+                          sel
+                            ? 'bg-[#2a1810] text-white'
                             : hot
-                              ? 'bg-amber-50 hover:bg-amber-100/80'
+                              ? 'bg-amber-50'
                               : 'hover:bg-[#faf6f1]'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="font-bold truncate flex items-center gap-1">
-                              {hot && !selected ? (
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                              ) : null}
+                            <p className="font-bold truncate">
+                              {hot && !sel ? '● ' : ''}
                               {o.customer_name}
-                              {risky && !selected ? (
-                                <span className="text-[10px] text-red-700 font-semibold">
-                                  خطر
-                                </span>
-                              ) : null}
                             </p>
                             <p
-                              className={`text-xs truncate ${selected ? 'text-[#cbb8a8]' : 'text-[#6b5748]'}`}
+                              className={`text-xs truncate ${sel ? 'text-white/70' : 'text-[#6a5648]'}`}
                             >
                               {o.city} · {timeAgo(o.created_at)}
-                              {o.status === 'NO_ANSWER' ? ' · إعادة' : ''}
-                              {o.status === 'PENDING_CONFIRMATION' && mins < 30
-                                ? ' · جديد'
-                                : ''}
                             </p>
                           </div>
-                          <p className="text-sm font-bold tabular-nums shrink-0">
+                          <span className="font-bold tabular-nums shrink-0">
                             {o.total_amount}
-                          </p>
+                          </span>
                         </div>
                       </button>
                     );
@@ -749,612 +501,366 @@ export default function OpsDesk() {
               </div>
             </aside>
 
-            <section className="rounded-2xl border border-[#e5d9cc] bg-white min-h-[440px] shadow-sm">
+            {/* Focus card */}
+            <section className="rounded-2xl border border-[#e6d9cc] bg-white min-h-[480px]">
               {!active ? (
-                <div className="h-full min-h-[440px] flex items-center justify-center p-10 text-[#6b5748] text-sm">
-                  اختاري طلب من الطابور.
+                <div className="flex items-center justify-center min-h-[480px] text-[#6a5648] text-sm p-8 text-center">
+                  {mode === 'confirm'
+                    ? 'ما كاين حتى طلب فالطابور.'
+                    : 'ما كاين حتى طلب للشحن.'}
                 </div>
-              ) : tab === 'confirm' ? (
-                <ConfirmFocus
-                  order={active}
-                  history={activeHistory}
-                  busy={busy}
-                  notesDraft={notesDraft}
-                  setNotesDraft={setNotesDraft}
-                  showCancel={showCancel}
-                  setShowCancel={setShowCancel}
-                  checklist={checklist}
-                  setChecklist={setChecklist}
-                  onSaveNotes={() => void saveNotes()}
-                  onConfirm={() =>
-                    void runPatch(
-                      active.order_number,
-                      { status: 'CONFIRMED' },
-                      true,
-                    )
-                  }
-                  onNoAnswer={() =>
-                    void runPatch(
-                      active.order_number,
-                      {
-                        status: 'NO_ANSWER',
-                        notes: notesDraft || 'ما جاوبش — إعادة اتصال',
-                      },
-                      true,
-                    )
-                  }
-                  onCancel={(reason) =>
-                    void runPatch(
-                      active.order_number,
-                      {
-                        status: 'CANCELLED',
-                        cancel_reason: reason,
-                        notes: reason,
-                      },
-                      true,
-                    )
-                  }
-                />
+              ) : mode === 'confirm' ? (
+                <div className="p-5 sm:p-8 space-y-6">
+                  {risk?.risky ? (
+                    <p className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                      هاد الرقم عندو إلغاء/إرجاع متكرر من قبل.
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-wrap justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-[#6a5648] font-mono">
+                        {active.order_number} · {timeAgo(active.created_at)}
+                      </p>
+                      <h2 className="text-3xl sm:text-4xl font-bold mt-1 leading-tight">
+                        {active.customer_name}
+                      </h2>
+                      <p className="text-2xl font-semibold mt-2 dir-ltr tracking-wide">
+                        {active.phone}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="text-3xl font-bold tabular-nums">
+                        {active.total_amount}{' '}
+                        <span className="text-base text-[#6a5648]">DH</span>
+                      </p>
+                      <p className="text-xs text-[#6a5648]">COD</p>
+                    </div>
+                  </div>
+
+                  <div className="text-base space-y-1 leading-relaxed">
+                    <p>
+                      <span className="text-[#6a5648]">المدينة: </span>
+                      {active.city}
+                    </p>
+                    <p>
+                      <span className="text-[#6a5648]">العنوان: </span>
+                      {active.address}
+                    </p>
+                    <p>
+                      <span className="text-[#6a5648]">المنتجات: </span>
+                      {active.products}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <a
+                      href={telHref(active.phone)}
+                      className="flex items-center justify-center gap-2 py-5 rounded-2xl bg-[#2a1810] text-white text-lg font-bold"
+                    >
+                      <Phone className="w-6 h-6" />
+                      اتصال
+                    </a>
+                    <a
+                      href={customerWhatsAppHref(
+                        active.phone,
+                        buildCallCenterConfirmMessage(active),
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-5 rounded-2xl bg-[#25D366] text-white text-lg font-bold"
+                    >
+                      <MessageCircle className="w-6 h-6" />
+                      واتساب
+                    </a>
+                  </div>
+
+                  {!showCancel ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void patch(
+                            active.order_number,
+                            { status: 'CONFIRMED' },
+                            true,
+                          )
+                        }
+                        className="flex items-center justify-center gap-2 py-5 rounded-2xl bg-emerald-700 text-white text-lg font-bold disabled:opacity-40"
+                      >
+                        <Check className="w-6 h-6" />
+                        تأكيد
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void patch(
+                            active.order_number,
+                            {
+                              status: 'NO_ANSWER',
+                              notes: notes || 'ما جاوبش',
+                            },
+                            true,
+                          )
+                        }
+                        className="flex items-center justify-center gap-2 py-5 rounded-2xl border-2 border-amber-600 text-amber-950 text-lg font-bold disabled:opacity-40"
+                      >
+                        <PhoneMissed className="w-6 h-6" />
+                        ما جاوبش
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setShowCancel(true)}
+                        className="flex items-center justify-center gap-2 py-5 rounded-2xl border-2 border-red-600 text-red-700 text-lg font-bold disabled:opacity-40"
+                      >
+                        <X className="w-6 h-6" />
+                        إلغاء
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="font-bold">سبب الإلغاء</p>
+                      <div className="flex flex-wrap gap-2">
+                        {CANCEL_REASONS.map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              void patch(
+                                active.order_number,
+                                {
+                                  status: 'CANCELLED',
+                                  cancel_reason: r,
+                                  notes: r,
+                                },
+                                true,
+                              )
+                            }
+                            className="px-4 py-2.5 rounded-xl border border-[#e6d9cc] bg-[#faf6f1] text-sm font-medium"
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCancel(false)}
+                        className="text-sm text-[#6a5648]"
+                      >
+                        رجوع
+                      </button>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs text-[#6a5648]">ملاحظة</label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={2}
+                      placeholder="علامة قريبة، رقم ثاني…"
+                      className="mt-1 w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1] text-sm"
+                    />
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void patch(active.order_number, {
+                          status: active.status,
+                          notes,
+                        })
+                      }
+                      className="mt-1 text-sm text-[#6a5648] underline"
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                </div>
               ) : (
-                <ShipFocus
-                  order={active}
-                  busy={busy}
-                  courier={courier}
-                  setCourier={(id) => {
-                    setCourier(id);
-                    localStorage.setItem(COURIER_PREF_KEY, id);
-                  }}
-                  trackingDraft={trackingDraft}
-                  setTrackingDraft={setTrackingDraft}
-                  copied={copied}
-                  selectedCount={selectedShip.size}
-                  onToggleSelect={() => toggleShipSelect(active.order_number)}
-                  isSelected={selectedShip.has(active.order_number)}
-                  onCopySelected={() => void copySelectedShip()}
-                  onCopy={async () => {
-                    await copyText(buildCourierCopyLine(active));
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1200);
-                  }}
-                  onExport={() => {
-                    const qs = new URLSearchParams({
-                      token,
-                      template: courier,
-                      status: 'CONFIRMED,READY_TO_SHIP',
-                    });
-                    window.location.href = `/api/admin/orders/export/courier?${qs}`;
-                  }}
-                  onReady={() =>
-                    void runPatch(active.order_number, {
-                      status: 'READY_TO_SHIP',
-                      courier_name: courier,
-                    })
-                  }
-                  onShip={(withProvider) =>
-                    void runShip(active.order_number, withProvider)
-                  }
-                  onDelivered={() =>
-                    void runPatch(active.order_number, { status: 'DELIVERED' })
-                  }
-                  onReturned={() =>
-                    void runPatch(active.order_number, { status: 'RETURNED' })
-                  }
-                  onSelectAllToShip={() =>
-                    setSelectedShip(
-                      new Set(toShipOnly.map((o) => o.order_number)),
-                    )
-                  }
-                />
+                /* Ship focus */
+                <div className="p-5 sm:p-8 space-y-5">
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-mono text-[#6a5648]">
+                        {active.order_number} · {active.status_label}
+                      </p>
+                      <h2 className="text-2xl font-bold mt-1">
+                        {active.customer_name}
+                      </h2>
+                      <p className="text-sm text-[#6a5648] mt-1">
+                        {active.city} — {active.address}
+                      </p>
+                      <p className="text-sm mt-2">{active.products}</p>
+                      <p className="text-sm dir-ltr mt-1">{active.phone}</p>
+                    </div>
+                    <p className="text-2xl font-bold">{active.total_amount} DH</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {COURIERS.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setCourier(c.id);
+                          localStorage.setItem(COURIER_PREF_KEY, c.id);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm border ${
+                          courier === c.id
+                            ? 'bg-[#2a1810] text-white border-[#2a1810]'
+                            : 'border-[#e6d9cc] bg-[#faf6f1]'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const qs = new URLSearchParams({
+                          token,
+                          template: courier,
+                          status: 'CONFIRMED,READY_TO_SHIP',
+                        });
+                        window.location.href = `/api/admin/orders/export/courier?${qs}`;
+                      }}
+                      className="ms-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#e6d9cc] text-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      CSV
+                    </button>
+                  </div>
+
+                  <input
+                    value={tracking}
+                    onChange={(e) => setTracking(e.target.value)}
+                    placeholder="رقم التتبع"
+                    className="w-full p-3.5 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
+                  />
+
+                  {(active.status === 'CONFIRMED' ||
+                    active.status === 'READY_TO_SHIP') && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          await copyText(buildCourierCopyLine(active));
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1200);
+                        }}
+                        className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-[#2a1810] font-bold"
+                      >
+                        <Copy className="w-5 h-5" />
+                        {copied ? 'تم' : 'نسخ للشركة'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void doShip(active.order_number)}
+                        className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#2a1810] text-white font-bold"
+                      >
+                        <Truck className="w-5 h-5" />
+                        تم الإرسال
+                      </button>
+                    </div>
+                  )}
+
+                  {active.status === 'SHIPPED' && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void patch(active.order_number, {
+                            status: 'DELIVERED',
+                          })
+                        }
+                        className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-emerald-700 text-white font-bold"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                        تم التسليم
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void patch(active.order_number, {
+                            status: 'RETURNED',
+                          })
+                        }
+                        className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-red-600 text-red-700 font-bold"
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                        مرتجع
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </section>
           </div>
         </div>
       )}
 
-      {tab === 'monitor' && (
-        <div className="mx-auto max-w-6xl px-3 py-4 space-y-4">
-          <div className="flex flex-wrap gap-2 items-center">
-            {MONITOR_FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setMonitorFilter(f.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm border ${
-                  monitorFilter === f.id
-                    ? 'bg-[#2c1a12] text-white border-[#2c1a12]'
-                    : 'bg-white border-[#e5d9cc]'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+      {/* All / monitor */}
+      {mode === 'all' && (
+        <div className="mx-auto max-w-5xl px-3 py-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
             <input
-              value={monitorQuery}
-              onChange={(e) => setMonitorQuery(e.target.value)}
-              placeholder="بحث: اسم / مدينة / هاتف / رقم"
-              className="ms-auto flex-1 min-w-[180px] max-w-sm p-2.5 rounded-xl border border-[#e5d9cc] bg-white text-sm"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="بحث…"
+              className="flex-1 min-w-[160px] p-3 rounded-xl border border-[#e6d9cc] bg-white"
             />
             <button
               type="button"
               onClick={() => {
                 window.location.href = `/api/admin/orders/csv?token=${encodeURIComponent(token)}`;
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2c1a12] text-white text-sm font-bold"
+              className="inline-flex items-center gap-1.5 px-4 py-3 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
             >
               <Download className="w-4 h-4" />
               Excel
             </button>
           </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-[#e5d9cc] bg-white shadow-sm">
-            <table className="w-full text-sm text-right min-w-[960px]">
-              <thead className="bg-[#faf6f1] text-[#6b5748]">
+          <div className="overflow-x-auto rounded-2xl border border-[#e6d9cc] bg-white">
+            <table className="w-full text-sm text-right min-w-[800px]">
+              <thead className="bg-[#faf6f1] text-[#6a5648]">
                 <tr>
-                  <th className="p-3 font-medium">الوقت</th>
-                  <th className="p-3 font-medium">الطلب</th>
-                  <th className="p-3 font-medium">الزبون</th>
-                  <th className="p-3 font-medium">الهاتف</th>
-                  <th className="p-3 font-medium">المدينة</th>
-                  <th className="p-3 font-medium">المنتجات</th>
+                  <th className="p-3 font-medium">وقت</th>
+                  <th className="p-3 font-medium">طلب</th>
+                  <th className="p-3 font-medium">زبون</th>
+                  <th className="p-3 font-medium">هاتف</th>
+                  <th className="p-3 font-medium">مدينة</th>
                   <th className="p-3 font-medium">COD</th>
-                  <th className="p-3 font-medium">تتبع</th>
-                  <th className="p-3 font-medium">الحالة</th>
+                  <th className="p-3 font-medium">حالة</th>
                 </tr>
               </thead>
               <tbody>
-                {monitorRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="p-8 text-center text-[#6b5748]"
-                    >
-                      ما كاين حتى طلب.
+                {filteredAll.map((o) => (
+                  <tr key={o.order_number} className="border-t border-[#f0e8df]">
+                    <td className="p-3 text-xs text-[#6a5648] whitespace-nowrap">
+                      {formatAdminDate(o.created_at)}
                     </td>
+                    <td className="p-3 font-mono text-xs">{o.order_number}</td>
+                    <td className="p-3 font-medium">{o.customer_name}</td>
+                    <td className="p-3 dir-ltr text-left">{o.phone}</td>
+                    <td className="p-3">{o.city}</td>
+                    <td className="p-3 font-bold">{o.total_amount}</td>
+                    <td className="p-3 text-xs">{o.status_label}</td>
                   </tr>
-                ) : (
-                  monitorRows.map((o) => (
-                    <tr
-                      key={o.order_number}
-                      className="border-t border-[#f0e7dc] align-top hover:bg-[#faf6f1]/80"
-                    >
-                      <td className="p-3 whitespace-nowrap text-[#6b5748] text-xs">
-                        {formatAdminDate(o.created_at)}
-                      </td>
-                      <td className="p-3 font-mono text-xs">{o.order_number}</td>
-                      <td className="p-3 font-medium">{o.customer_name}</td>
-                      <td className="p-3 dir-ltr text-left whitespace-nowrap">
-                        {o.phone}
-                      </td>
-                      <td className="p-3">{o.city}</td>
-                      <td className="p-3 max-w-[180px] text-xs">{o.products}</td>
-                      <td className="p-3 font-bold whitespace-nowrap">
-                        {o.total_amount}
-                      </td>
-                      <td className="p-3 text-xs">
-                        {o.tracking_number || '—'}
-                      </td>
-                      <td className="p-3 whitespace-nowrap text-xs">
-                        {o.status_label}
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function ConfirmFocus({
-  order,
-  history,
-  busy,
-  notesDraft,
-  setNotesDraft,
-  showCancel,
-  setShowCancel,
-  checklist,
-  setChecklist,
-  onSaveNotes,
-  onConfirm,
-  onNoAnswer,
-  onCancel,
-}: {
-  order: AdminOrder;
-  history: ReturnType<typeof customerStats> | null;
-  busy: boolean;
-  notesDraft: string;
-  setNotesDraft: (v: string) => void;
-  showCancel: boolean;
-  setShowCancel: (v: boolean) => void;
-  checklist: Record<string, boolean>;
-  setChecklist: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  onSaveNotes: () => void;
-  onConfirm: () => void;
-  onNoAnswer: () => void;
-  onCancel: (reason: string) => void;
-}) {
-  const waHref = customerWhatsAppHref(
-    order.phone,
-    buildCallCenterConfirmMessage(order),
-  );
-  const mins = waitMinutes(order.created_at);
-  const hot = mins >= 120;
-  const risky =
-    history != null && history.cancelled + history.returned >= 2;
-
-  return (
-    <div className="p-4 sm:p-6 space-y-5">
-      {(hot || risky) && (
-        <div
-          className={`rounded-xl px-3 py-2 text-sm font-medium flex items-start gap-2 ${
-            risky
-              ? 'bg-red-50 text-red-800 border border-red-200'
-              : 'bg-amber-50 text-amber-900 border border-amber-200'
-          }`}
-        >
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>
-            {risky
-              ? `انتباه: هاد الرقم عندو ${history!.cancelled} إلغاء و ${history!.returned} إرجاع من قبل.`
-              : `مستعجل: الطلب باقي كاينشي ${timeAgo(order.created_at)} — أكّدي بسرعة.`}
-          </span>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-mono text-xs text-[#6b5748]">
-            {order.order_number} · {timeAgo(order.created_at)} ·{' '}
-            {order.status_label}
-          </p>
-          <h2 className="text-2xl sm:text-3xl font-bold mt-1 tracking-tight">
-            {order.customer_name}
-          </h2>
-          <p className="text-xl dir-ltr sm:text-right font-semibold mt-1 tabular-nums tracking-wide">
-            {order.phone}
-          </p>
-        </div>
-        <div className="text-left sm:text-right">
-          <p className="text-2xl sm:text-3xl font-bold tabular-nums">
-            {order.total_amount}{' '}
-            <span className="text-base font-semibold text-[#6b5748]">DH</span>
-          </p>
-          <p className="text-xs text-[#6b5748]">الدفع عند الاستلام</p>
-        </div>
-      </div>
-
-      {history && history.total > 1 ? (
-        <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2 py-1 rounded-lg bg-[#faf6f1] border border-[#e5d9cc]">
-            طلبات سابقة: {history.total - 1}
-          </span>
-          <span className="px-2 py-1 rounded-lg bg-[#faf6f1] border border-[#e5d9cc]">
-            تسليم: {history.delivered}
-          </span>
-          <span className="px-2 py-1 rounded-lg bg-[#faf6f1] border border-[#e5d9cc]">
-            إلغاء: {history.cancelled}
-          </span>
-          <span className="px-2 py-1 rounded-lg bg-[#faf6f1] border border-[#e5d9cc]">
-            إرجاع: {history.returned}
-          </span>
-        </div>
-      ) : (
-        <p className="text-xs text-[#6b5748]">زبونة جديدة (أول طلب فالقائمة).</p>
-      )}
-
-      <div className="rounded-xl bg-[#faf6f1] border border-[#e5d9cc] p-4 space-y-1.5">
-        <p className="text-sm">
-          <span className="text-[#6b5748]">المدينة: </span>
-          <strong>{order.city}</strong>
-        </p>
-        <p className="text-sm">
-          <span className="text-[#6b5748]">العنوان: </span>
-          {order.address}
-        </p>
-        <p className="text-sm pt-2 border-t border-[#e5d9cc]">
-          <span className="text-[#6b5748]">المنتجات: </span>
-          {order.products}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <a
-          href={telHref(order.phone)}
-          className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#2c1a12] text-[#f3efe9] text-base font-bold active:scale-[0.99]"
-        >
-          <Phone className="w-5 h-5" />
-          اتصال
-        </a>
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#25D366] text-white text-base font-bold active:scale-[0.99]"
-        >
-          <MessageCircle className="w-5 h-5" />
-          واتساب
-        </a>
-      </div>
-
-      <div className="rounded-xl border border-[#e5d9cc] p-3 space-y-2">
-        <p className="text-xs font-bold text-[#6b5748]">تشيك ليست المكالمة</p>
-        {CALL_CHECKLIST.map((item) => (
-          <label
-            key={item}
-            className="flex items-center gap-2 text-sm cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              checked={!!checklist[item]}
-              onChange={() =>
-                setChecklist((prev) => ({ ...prev, [item]: !prev[item] }))
-              }
-              className="rounded border-[#c4b5a5]"
-            />
-            {item}
-          </label>
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-xs text-[#6b5748]">ملاحظة داخلية</label>
-        <textarea
-          value={notesDraft}
-          onChange={(e) => setNotesDraft(e.target.value)}
-          rows={2}
-          className="w-full p-3 rounded-xl border border-[#e5d9cc] bg-[#faf6f1] text-sm"
-          placeholder="علامة قريبة، رقم ثاني، وقت مناسب للاتصال…"
-        />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onSaveNotes}
-          className="text-sm text-[#6b5748] underline disabled:opacity-40"
-        >
-          حفظ الملاحظة
-        </button>
-      </div>
-
-      {!showCancel ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-          <button
-            type="button"
-            disabled={busy || order.status === 'CONFIRMED'}
-            onClick={onConfirm}
-            className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-emerald-700 text-white text-base font-bold disabled:opacity-40"
-          >
-            <Check className="w-5 h-5" />
-            تأكيد
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onNoAnswer}
-            className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-amber-600 text-amber-950 text-base font-bold disabled:opacity-40"
-          >
-            <PhoneMissed className="w-5 h-5" />
-            ما جاوبش
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => setShowCancel(true)}
-            className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-red-600 text-red-700 text-base font-bold disabled:opacity-40"
-          >
-            <X className="w-5 h-5" />
-            إلغاء
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3 pt-2 border-t border-[#e5d9cc]">
-          <p className="text-sm font-bold">علاش ملغى؟</p>
-          <div className="flex flex-wrap gap-2">
-            {CANCEL_REASONS.map((reason) => (
-              <button
-                key={reason}
-                type="button"
-                disabled={busy}
-                onClick={() => onCancel(reason)}
-                className="px-3 py-2.5 rounded-xl border border-[#e5d9cc] bg-[#faf6f1] text-sm font-medium hover:border-[#2c1a12] disabled:opacity-40"
-              >
-                {reason}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowCancel(false)}
-            className="text-sm text-[#6b5748]"
-          >
-            رجوع
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ShipFocus({
-  order,
-  busy,
-  courier,
-  setCourier,
-  trackingDraft,
-  setTrackingDraft,
-  copied,
-  selectedCount,
-  isSelected,
-  onToggleSelect,
-  onCopySelected,
-  onCopy,
-  onExport,
-  onReady,
-  onShip,
-  onDelivered,
-  onReturned,
-  onSelectAllToShip,
-}: {
-  order: AdminOrder;
-  busy: boolean;
-  courier: string;
-  setCourier: (id: string) => void;
-  trackingDraft: string;
-  setTrackingDraft: (v: string) => void;
-  copied: boolean;
-  selectedCount: number;
-  isSelected: boolean;
-  onToggleSelect: () => void;
-  onCopySelected: () => void;
-  onCopy: () => void;
-  onExport: () => void;
-  onReady: () => void;
-  onShip: (withProvider: boolean) => void;
-  onDelivered: () => void;
-  onReturned: () => void;
-  onSelectAllToShip: () => void;
-}) {
-  const canShip =
-    order.status === 'CONFIRMED' || order.status === 'READY_TO_SHIP';
-  const inTransit = order.status === 'SHIPPED';
-
-  return (
-    <div className="p-4 sm:p-6 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-mono text-xs text-[#6b5748]">
-            {order.order_number} · {order.status_label}
-          </p>
-          <h2 className="text-2xl font-bold mt-1">{order.customer_name}</h2>
-          <p className="text-sm text-[#6b5748] mt-1">
-            {order.city} — {order.address}
-          </p>
-          <p className="text-sm mt-2">{order.products}</p>
-          <p className="text-sm dir-ltr mt-1">{order.phone}</p>
-        </div>
-        <p className="text-2xl font-bold tabular-nums">{order.total_amount} DH</p>
-      </div>
-
-      <div className="flex flex-wrap gap-2 items-center rounded-xl bg-[#faf6f1] border border-[#e5d9cc] p-3">
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onToggleSelect}
-          />
-          تحديد للنسخ الجماعي
-        </label>
-        <button
-          type="button"
-          onClick={onSelectAllToShip}
-          className="text-xs underline text-[#6b5748]"
-        >
-          تحديد الكل الجاهز
-        </button>
-        <button
-          type="button"
-          disabled={selectedCount === 0}
-          onClick={onCopySelected}
-          className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e5d9cc] bg-white text-sm font-medium disabled:opacity-40"
-        >
-          <Copy className="w-3.5 h-3.5" />
-          نسخ المحدد ({selectedCount})
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-sm text-[#6b5748]">الشركة:</span>
-        {COURIERS.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setCourier(c.id)}
-            className={`px-3 py-1.5 rounded-lg text-sm border ${
-              courier === c.id
-                ? 'bg-[#2c1a12] text-white border-[#2c1a12]'
-                : 'border-[#e5d9cc] bg-[#faf6f1]'
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={onExport}
-          className="ms-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#e5d9cc] text-sm"
-        >
-          <Download className="w-4 h-4" />
-          CSV
-        </button>
-      </div>
-
-      <input
-        value={trackingDraft}
-        onChange={(e) => setTrackingDraft(e.target.value)}
-        placeholder="رقم التتبع"
-        className="w-full p-3.5 rounded-xl border border-[#e5d9cc] bg-[#faf6f1] text-sm"
-      />
-
-      {canShip ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onCopy}
-            className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-[#2c1a12] text-base font-bold"
-          >
-            <Copy className="w-5 h-5" />
-            {copied ? 'تم النسخ' : 'نسخ هاد الطلب'}
-          </button>
-          {order.status === 'CONFIRMED' ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onReady}
-              className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl border border-[#e5d9cc] text-base font-bold"
-            >
-              جهّز للطرد
-            </button>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onShip(false)}
-            className="sm:col-span-2 inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#2c1a12] text-[#f3efe9] text-base font-bold"
-          >
-            <Truck className="w-5 h-5" />
-            تم الإرسال للشركة
-          </button>
-        </div>
-      ) : null}
-
-      {inTransit ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onDelivered}
-            className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl bg-emerald-700 text-white text-base font-bold"
-          >
-            <CheckCircle2 className="w-5 h-5" />
-            تم التسليم
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onReturned}
-            className="inline-flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-red-600 text-red-700 text-base font-bold"
-          >
-            <RotateCcw className="w-5 h-5" />
-            مرتجع
-          </button>
-        </div>
-      ) : null}
     </div>
   );
 }

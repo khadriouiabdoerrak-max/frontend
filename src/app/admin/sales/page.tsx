@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function SalesRedirectPage() {
-  redirect('/admin?tab=monitor');
+  redirect('/admin?tab=all');
 }

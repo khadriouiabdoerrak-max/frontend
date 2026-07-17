@@ -11,8 +11,8 @@ export default function AdminPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-[100dvh] bg-[#f7f3ee] flex items-center justify-center text-[#7a6555]">
-          جاري فتح المكتب…
+        <div className="min-h-[100dvh] bg-[#f5f0ea] flex items-center justify-center text-[#6a5648]">
+          جاري الفتح…
         </div>
       }
     >
