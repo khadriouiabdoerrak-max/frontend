@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Copy,
   Download,
+  Eye,
   Lock,
   LogOut,
   MessageCircle,
@@ -175,6 +176,7 @@ export default function OpsDesk() {
   const [mode, setMode] = useState<Mode>(initial);
   const [statusFocus, setStatusFocus] = useState<StatusFocus>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState('');
   const [showCancel, setShowCancel] = useState(false);
@@ -189,6 +191,7 @@ export default function OpsDesk() {
   const goMode = (m: Mode, clearFocus = true) => {
     setMode(m);
     setShowCancel(false);
+    setDetailOpen(false);
     if (clearFocus) setStatusFocus(null);
     router.replace(`/admin?tab=${modeQuery(m)}`, { scroll: false });
   };
@@ -197,7 +200,19 @@ export default function OpsDesk() {
     setStatusFocus(focus);
     setMode(desk);
     setShowCancel(false);
+    setDetailOpen(false);
     router.replace(`/admin?tab=${modeQuery(desk)}`, { scroll: false });
+  };
+
+  const openConfirmDetail = (id: string) => {
+    setActiveId(id);
+    setDetailOpen(true);
+    setShowCancel(false);
+  };
+
+  const closeConfirmDetail = () => {
+    setDetailOpen(false);
+    setShowCancel(false);
   };
 
   const load = useCallback(async (secret: string, silent = false) => {
@@ -295,6 +310,17 @@ export default function OpsDesk() {
 
   useEffect(() => {
     if (mode === 'all' || mode === 'board') return;
+    if (mode === 'confirm') {
+      if (
+        detailOpen &&
+        activeId &&
+        !confirmQueue.some((o) => o.order_number === activeId)
+      ) {
+        setDetailOpen(false);
+        setActiveId(null);
+      }
+      return;
+    }
     if (!queue.length) {
       setActiveId(null);
       return;
@@ -302,7 +328,7 @@ export default function OpsDesk() {
     if (!activeId || !queue.some((o) => o.order_number === activeId)) {
       setActiveId(queue[0].order_number);
     }
-  }, [queue, activeId, mode]);
+  }, [queue, activeId, mode, detailOpen, confirmQueue]);
 
   const active = useMemo(
     () => orders.find((o) => o.order_number === activeId) ?? null,
@@ -339,7 +365,10 @@ export default function OpsDesk() {
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
-      if (nextConfirm) advance(id, confirmQueue);
+      if (nextConfirm) {
+        if (detailOpen) closeConfirmDetail();
+        else advance(id, confirmQueue);
+      }
       void load(token, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ');
@@ -654,11 +683,11 @@ export default function OpsDesk() {
         </div>
       )}
 
-      {/* Confirm / Ship */}
-      {(mode === 'confirm' || mode === 'ship') && (
-        <div className="mx-auto max-w-5xl px-3 py-4">
+      {/* Confirm — sheet like sales */}
+      {mode === 'confirm' && (
+        <div className="mx-auto max-w-7xl px-3 py-4 space-y-3">
           {statusFocus && focusLabel(statusFocus) ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
                 فلتر: {focusLabel(statusFocus)}
               </span>
@@ -672,87 +701,144 @@ export default function OpsDesk() {
             </div>
           ) : null}
 
-          <div className="lg:hidden flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
-            {queue.map((o) => (
-              <button
-                key={o.order_number}
-                type="button"
-                onClick={() => setActiveId(o.order_number)}
-                className={`shrink-0 rounded-xl border px-3 py-2 text-right min-w-[140px] ${
-                  o.order_number === activeId
-                    ? 'bg-[#2a1810] text-white border-[#2a1810]'
-                    : 'bg-white border-[#e6d9cc]'
-                }`}
-              >
-                <p className="font-bold text-sm truncate">{o.customer_name}</p>
-                <p className="text-xs opacity-80">
-                  {o.total_amount} · {timeAgo(o.created_at)}
-                </p>
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-[#6a5648]">
+              جدول التأكيد — اضغطي{' '}
+              <span className="font-bold text-[#2a1810]">تفاصيل</span> باش تشوفي
+              الطلب وتأكديه.
+            </p>
+            <span className="text-xs text-[#6a5648] tabular-nums">
+              {confirmQueue.length} سطر
+            </span>
           </div>
 
-          <div className="grid lg:grid-cols-[240px_1fr] gap-4 items-start">
-            <aside className="hidden lg:flex flex-col rounded-2xl border border-[#e6d9cc] bg-white overflow-hidden max-h-[calc(100dvh-180px)]">
-              <div className="px-3 py-2 border-b border-[#e6d9cc] text-sm font-bold bg-[#faf6f1]">
-                الطابور
-              </div>
-              <div className="overflow-y-auto">
-                {queue.length === 0 ? (
-                  <p className="p-6 text-sm text-[#6a5648] text-center">
-                    فارغ
-                  </p>
+          <div className="overflow-x-auto rounded-xl border border-[#c8d7c0] bg-white shadow-sm">
+            <table className="w-full text-sm text-right min-w-[960px] border-collapse">
+              <thead>
+                <tr className="bg-[#e8f0e3] text-[#2f4a2a] border-b border-[#c8d7c0]">
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0] whitespace-nowrap">
+                    وقت
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
+                    طلب
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
+                    زبون
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
+                    هاتف
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
+                    مدينة
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0] min-w-[160px]">
+                    منتجات
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
+                    COD
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
+                    حالة
+                  </th>
+                  <th className="p-2.5 font-semibold whitespace-nowrap">تفاصيل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {confirmQueue.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="p-10 text-center text-[#6a5648]"
+                    >
+                      ما كاين حتى طلب فالطابور.
+                    </td>
+                  </tr>
                 ) : (
-                  queue.map((o) => {
-                    const sel = o.order_number === activeId;
+                  confirmQueue.map((o, i) => {
                     const hot =
                       minsWaiting(o.created_at) >= 120 ||
                       o.status === 'NO_ANSWER';
                     return (
-                      <button
+                      <tr
                         key={o.order_number}
-                        type="button"
-                        onClick={() => setActiveId(o.order_number)}
-                        className={`w-full text-right px-3 py-3 border-b border-[#f0e8df] ${
-                          sel
-                            ? 'bg-[#2a1810] text-white'
-                            : hot
-                              ? 'bg-amber-50'
-                              : 'hover:bg-[#faf6f1]'
-                        }`}
+                        className={`border-t border-[#e2ebe0] ${
+                          hot
+                            ? 'bg-amber-50/80'
+                            : i % 2 === 0
+                              ? 'bg-white'
+                              : 'bg-[#f7faf5]'
+                        } hover:bg-[#eef5ea]`}
                       >
-                        <div className="flex justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-bold truncate">
-                              {hot && !sel ? '● ' : ''}
-                              {o.customer_name}
-                            </p>
-                            <p
-                              className={`text-xs truncate ${sel ? 'text-white/70' : 'text-[#6a5648]'}`}
-                            >
-                              {o.city} · {timeAgo(o.created_at)}
-                            </p>
+                        <td className="p-2.5 text-xs text-[#6a5648] whitespace-nowrap border-l border-[#e2ebe0]">
+                          {formatAdminDate(o.created_at)}
+                          <div className="text-[11px]">
+                            {timeAgo(o.created_at)}
                           </div>
-                          <span className="font-bold tabular-nums shrink-0">
-                            {o.total_amount}
-                          </span>
-                        </div>
-                      </button>
+                        </td>
+                        <td className="p-2.5 font-mono text-xs border-l border-[#e2ebe0]">
+                          {o.order_number}
+                        </td>
+                        <td className="p-2.5 font-medium border-l border-[#e2ebe0]">
+                          {hot ? '● ' : ''}
+                          {o.customer_name}
+                        </td>
+                        <td className="p-2.5 dir-ltr text-left border-l border-[#e2ebe0] whitespace-nowrap">
+                          {o.phone}
+                        </td>
+                        <td className="p-2.5 border-l border-[#e2ebe0]">
+                          {o.city}
+                        </td>
+                        <td
+                          className="p-2.5 text-xs max-w-[220px] truncate border-l border-[#e2ebe0]"
+                          title={o.products}
+                        >
+                          {o.products}
+                        </td>
+                        <td className="p-2.5 font-bold tabular-nums border-l border-[#e2ebe0]">
+                          {o.total_amount}
+                        </td>
+                        <td className="p-2.5 text-xs border-l border-[#e2ebe0]">
+                          {o.status_label}
+                        </td>
+                        <td className="p-2">
+                          <button
+                            type="button"
+                            onClick={() => openConfirmDetail(o.order_number)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a1810] text-white text-xs font-bold"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            تفاصيل
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })
                 )}
-              </div>
-            </aside>
+              </tbody>
+            </table>
+          </div>
 
-            <section className="rounded-2xl border border-[#e6d9cc] bg-white min-h-[480px]">
-              {!active ? (
-                <div className="flex items-center justify-center min-h-[480px] text-[#6a5648] text-sm p-8 text-center">
-                  {mode === 'confirm'
-                    ? 'ما كاين حتى طلب فالطابور.'
-                    : 'ما كاين حتى طلب للشحن.'}
+          {detailOpen && active && isConfirm(active) ? (
+            <div className="fixed inset-0 z-40 flex justify-end">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/35"
+                aria-label="إغلاق"
+                onClick={closeConfirmDetail}
+              />
+              <div className="relative z-10 h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl border-s border-[#e6d9cc]">
+                <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-[#e6d9cc] bg-white px-4 py-3">
+                  <h3 className="font-bold">ورقة الطلب</h3>
+                  <button
+                    type="button"
+                    onClick={closeConfirmDetail}
+                    className="p-2 rounded-lg border border-[#e6d9cc]"
+                    aria-label="إغلاق"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              ) : mode === 'confirm' ? (
-                <div className="p-5 sm:p-8 space-y-6">
+                <div className="p-4 sm:p-5 space-y-5">
                   {risk?.risky ? (
                     <p className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                       <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -760,28 +846,23 @@ export default function OpsDesk() {
                     </p>
                   ) : null}
 
-                  <div className="flex flex-wrap justify-between gap-4">
-                    <div>
-                      <p className="text-xs text-[#6a5648] font-mono">
-                        {active.order_number} · {timeAgo(active.created_at)}
-                      </p>
-                      <h2 className="text-3xl sm:text-4xl font-bold mt-1 leading-tight">
-                        {active.customer_name}
-                      </h2>
-                      <p className="text-2xl font-semibold mt-2 dir-ltr tracking-wide">
-                        {active.phone}
-                      </p>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-3xl font-bold tabular-nums">
-                        {active.total_amount}{' '}
-                        <span className="text-base text-[#6a5648]">DH</span>
-                      </p>
-                      <p className="text-xs text-[#6a5648]">COD</p>
-                    </div>
+                  <div>
+                    <p className="text-xs text-[#6a5648] font-mono">
+                      {active.order_number} · {timeAgo(active.created_at)}
+                    </p>
+                    <h2 className="text-2xl font-bold mt-1 leading-tight">
+                      {active.customer_name}
+                    </h2>
+                    <p className="text-xl font-semibold mt-2 dir-ltr tracking-wide">
+                      {active.phone}
+                    </p>
+                    <p className="text-2xl font-bold tabular-nums mt-3">
+                      {active.total_amount}{' '}
+                      <span className="text-sm text-[#6a5648]">DH COD</span>
+                    </p>
                   </div>
 
-                  <div className="text-base space-y-1 leading-relaxed">
+                  <div className="text-sm space-y-1.5 leading-relaxed rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
                     <p>
                       <span className="text-[#6a5648]">المدينة: </span>
                       {active.city}
@@ -794,14 +875,18 @@ export default function OpsDesk() {
                       <span className="text-[#6a5648]">المنتجات: </span>
                       {active.products}
                     </p>
+                    <p>
+                      <span className="text-[#6a5648]">الحالة: </span>
+                      {active.status_label}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <a
                       href={telHref(active.phone)}
-                      className="flex items-center justify-center gap-2 py-5 rounded-2xl bg-[#2a1810] text-white text-lg font-bold"
+                      className="flex items-center justify-center gap-2 py-4 rounded-xl bg-[#2a1810] text-white font-bold"
                     >
-                      <Phone className="w-6 h-6" />
+                      <Phone className="w-5 h-5" />
                       اتصال
                     </a>
                     <a
@@ -811,15 +896,15 @@ export default function OpsDesk() {
                       )}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-5 rounded-2xl bg-[#25D366] text-white text-lg font-bold"
+                      className="flex items-center justify-center gap-2 py-4 rounded-xl bg-[#25D366] text-white font-bold"
                     >
-                      <MessageCircle className="w-6 h-6" />
+                      <MessageCircle className="w-5 h-5" />
                       واتساب
                     </a>
                   </div>
 
                   {!showCancel ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid gap-2">
                       <button
                         type="button"
                         disabled={busy}
@@ -830,9 +915,9 @@ export default function OpsDesk() {
                             true,
                           )
                         }
-                        className="flex items-center justify-center gap-2 py-5 rounded-2xl bg-emerald-700 text-white text-lg font-bold disabled:opacity-40"
+                        className="flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-700 text-white font-bold disabled:opacity-40"
                       >
-                        <Check className="w-6 h-6" />
+                        <Check className="w-5 h-5" />
                         تأكيد
                       </button>
                       <button
@@ -848,18 +933,18 @@ export default function OpsDesk() {
                             true,
                           )
                         }
-                        className="flex items-center justify-center gap-2 py-5 rounded-2xl border-2 border-amber-600 text-amber-950 text-lg font-bold disabled:opacity-40"
+                        className="flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-amber-600 text-amber-950 font-bold disabled:opacity-40"
                       >
-                        <PhoneMissed className="w-6 h-6" />
+                        <PhoneMissed className="w-5 h-5" />
                         ما جاوبش
                       </button>
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() => setShowCancel(true)}
-                        className="flex items-center justify-center gap-2 py-5 rounded-2xl border-2 border-red-600 text-red-700 text-lg font-bold disabled:opacity-40"
+                        className="flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-red-600 text-red-700 font-bold disabled:opacity-40"
                       >
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5" />
                         إلغاء
                       </button>
                     </div>
@@ -883,7 +968,7 @@ export default function OpsDesk() {
                                 true,
                               )
                             }
-                            className="px-4 py-2.5 rounded-xl border border-[#e6d9cc] bg-[#faf6f1] text-sm font-medium"
+                            className="px-3 py-2 rounded-lg border border-[#e6d9cc] bg-[#faf6f1] text-sm"
                           >
                             {r}
                           </button>
@@ -922,6 +1007,97 @@ export default function OpsDesk() {
                       حفظ
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Ship desk */}
+      {mode === 'ship' && (
+        <div className="mx-auto max-w-5xl px-3 py-4">
+          {statusFocus && focusLabel(statusFocus) ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
+                فلتر: {focusLabel(statusFocus)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setStatusFocus(null)}
+                className="text-[#6a5648] underline"
+              >
+                إزالة الفلتر
+              </button>
+            </div>
+          ) : null}
+
+          <div className="lg:hidden flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
+            {shipQueue.map((o) => (
+              <button
+                key={o.order_number}
+                type="button"
+                onClick={() => setActiveId(o.order_number)}
+                className={`shrink-0 rounded-xl border px-3 py-2 text-right min-w-[140px] ${
+                  o.order_number === activeId
+                    ? 'bg-[#2a1810] text-white border-[#2a1810]'
+                    : 'bg-white border-[#e6d9cc]'
+                }`}
+              >
+                <p className="font-bold text-sm truncate">{o.customer_name}</p>
+                <p className="text-xs opacity-80">
+                  {o.total_amount} · {timeAgo(o.created_at)}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-[240px_1fr] gap-4 items-start">
+            <aside className="hidden lg:flex flex-col rounded-2xl border border-[#e6d9cc] bg-white overflow-hidden max-h-[calc(100dvh-180px)]">
+              <div className="px-3 py-2 border-b border-[#e6d9cc] text-sm font-bold bg-[#faf6f1]">
+                الطابور
+              </div>
+              <div className="overflow-y-auto">
+                {shipQueue.length === 0 ? (
+                  <p className="p-6 text-sm text-[#6a5648] text-center">فارغ</p>
+                ) : (
+                  shipQueue.map((o) => {
+                    const sel = o.order_number === activeId;
+                    return (
+                      <button
+                        key={o.order_number}
+                        type="button"
+                        onClick={() => setActiveId(o.order_number)}
+                        className={`w-full text-right px-3 py-3 border-b border-[#f0e8df] ${
+                          sel ? 'bg-[#2a1810] text-white' : 'hover:bg-[#faf6f1]'
+                        }`}
+                      >
+                        <div className="flex justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-bold truncate">
+                              {o.customer_name}
+                            </p>
+                            <p
+                              className={`text-xs truncate ${sel ? 'text-white/70' : 'text-[#6a5648]'}`}
+                            >
+                              {o.city} · {timeAgo(o.created_at)}
+                            </p>
+                          </div>
+                          <span className="font-bold tabular-nums shrink-0">
+                            {o.total_amount}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </aside>
+
+            <section className="rounded-2xl border border-[#e6d9cc] bg-white min-h-[480px]">
+              {!active || !isShip(active) ? (
+                <div className="flex items-center justify-center min-h-[480px] text-[#6a5648] text-sm p-8 text-center">
+                  ما كاين حتى طلب للشحن.
                 </div>
               ) : (
                 <div className="p-5 sm:p-8 space-y-5">
