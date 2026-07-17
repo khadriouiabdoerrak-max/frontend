@@ -447,6 +447,13 @@ export default function OpsDesk() {
     [orders, activeId],
   );
 
+  const cancelTop = useMemo(() => {
+    const map = stats?.cancel_reasons || {};
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4);
+  }, [stats]);
+
   useEffect(() => {
     setNotes(active?.notes || '');
     setTracking(active?.tracking_number || '');
@@ -645,13 +652,6 @@ export default function OpsDesk() {
       desk: 'orders',
     },
   ];
-
-  const cancelTop = useMemo(() => {
-    const map = stats?.cancel_reasons || {};
-    return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
-  }, [stats]);
 
   return (
     <div className="min-h-[100dvh] bg-[#f5f0ea] text-[#2a1810]">
