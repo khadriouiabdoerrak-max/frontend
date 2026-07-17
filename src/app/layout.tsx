@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://oxiprime.store",
   ),
   other: {
-    "oxiprime-build": process.env.NEXT_PUBLIC_BUILD_ID ?? "ops-hooks-fix-v1",
+    "oxiprime-build": process.env.NEXT_PUBLIC_BUILD_ID ?? "ops-wa-status-v1",
   },
   title: "تاجكِ | روتين OXIPRIME الاحترافي للعناية بالشعر",
   description:

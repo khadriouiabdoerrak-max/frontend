@@ -27,8 +27,10 @@ import {
 import {
   buildCallCenterConfirmMessage,
   buildConfirmedWhatsAppMessage,
+  buildDeliveredWhatsAppMessage,
   buildShippedWhatsAppMessage,
   customerWhatsAppHref,
+  openCustomerWhatsApp,
 } from '@/lib/whatsapp';
 import {
   ADMIN_TOKEN_KEY,
@@ -516,8 +518,14 @@ export default function OpsDesk() {
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
-      closeDetail();
+      // Keep detail open so ops can send WhatsApp tracking message
       void load(token, true);
+      if (withProvider && updated.tracking_number) {
+        openCustomerWhatsApp(
+          updated.phone,
+          buildShippedWhatsAppMessage(updated),
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ');
     } finally {
@@ -1183,10 +1191,12 @@ export default function OpsDesk() {
                     active.phone,
                     isConfirmQueue(active)
                       ? buildCallCenterConfirmMessage(active)
-                      : active.status === 'SHIPPED' ||
-                          hasRealTracking(active)
-                        ? buildShippedWhatsAppMessage(active)
-                        : buildConfirmedWhatsAppMessage(active),
+                      : active.status === 'DELIVERED'
+                        ? buildDeliveredWhatsAppMessage(active)
+                        : active.status === 'SHIPPED' ||
+                            hasRealTracking(active)
+                          ? buildShippedWhatsAppMessage(active)
+                          : buildConfirmedWhatsAppMessage(active),
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1196,6 +1206,68 @@ export default function OpsDesk() {
                   WhatsApp
                 </a>
               </div>
+
+              <div className="space-y-2 rounded-xl border border-[#c8e6c9] bg-[#f3faf3] p-3">
+                <p className="text-xs font-bold text-[#2e5a32]">
+                  رسائل واتساب حسب الحالة
+                </p>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {isConfirmQueue(active) ? (
+                    <a
+                      href={customerWhatsAppHref(
+                        active.phone,
+                        buildCallCenterConfirmMessage(active),
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2.5 rounded-lg bg-[#25D366] text-white text-sm font-bold text-center"
+                    >
+                      1) طلب التأكيد من الزبونة
+                    </a>
+                  ) : null}
+                  {active.status === 'CONFIRMED' ||
+                  active.status === 'READY_TO_SHIP' ? (
+                    <a
+                      href={customerWhatsAppHref(
+                        active.phone,
+                        buildConfirmedWhatsAppMessage(active),
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2.5 rounded-lg bg-[#25D366] text-white text-sm font-bold text-center"
+                    >
+                      2) طلبك تأكّد — غادي يتصيفط
+                    </a>
+                  ) : null}
+                  {active.status === 'SHIPPED' || hasRealTracking(active) ? (
+                    <a
+                      href={customerWhatsAppHref(
+                        active.phone,
+                        buildShippedWhatsAppMessage(active),
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2.5 rounded-lg bg-[#25D366] text-white text-sm font-bold text-center"
+                    >
+                      3) طلبك تصيفط + رقم التتبع
+                    </a>
+                  ) : null}
+                  {active.status === 'DELIVERED' ? (
+                    <a
+                      href={customerWhatsAppHref(
+                        active.phone,
+                        buildDeliveredWhatsAppMessage(active),
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2.5 rounded-lg bg-[#25D366] text-white text-sm font-bold text-center"
+                    >
+                      4) بعد التسليم — شكراً
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+
               {hasRealTracking(active) ? (
                 <button
                   type="button"
@@ -1219,17 +1291,23 @@ export default function OpsDesk() {
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      void patch(
-                        active.order_number,
-                        { status: 'CONFIRMED' },
-                        true,
-                      )
-                    }
+                    onClick={() => {
+                      void (async () => {
+                        await patch(
+                          active.order_number,
+                          { status: 'CONFIRMED' },
+                          false,
+                        );
+                        openCustomerWhatsApp(
+                          active.phone,
+                          buildConfirmedWhatsAppMessage(active),
+                        );
+                      })();
+                    }}
                     className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-700 text-white font-bold disabled:opacity-40"
                   >
                     <Check className="w-5 h-5" />
-                    Confirmé
+                    Confirmé + واتساب
                   </button>
                   <div className="grid grid-cols-3 gap-2">
                     {(

@@ -31,17 +31,25 @@ export function buildOrderConfirmWhatsAppMessage(orderNumber: string): string {
   return `السلام عليكم، بغيت نأكد طلبي رقم ${orderNumber}`;
 }
 
-/** Open WhatsApp chat with the customer (call-center confirmation). */
+/** Open WhatsApp chat with the customer (call-center / status messages). */
 export function customerWhatsAppHref(phone: string, message: string): string {
-  let digits = phone.replace(/\D/g, '');
+  let digits = (phone || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
   if (digits.startsWith('0') && digits.length === 10) {
     digits = `212${digits.slice(1)}`;
-  } else if (digits.startsWith('212')) {
-    // already international
   } else if (digits.length === 9 && (digits.startsWith('6') || digits.startsWith('7'))) {
     digits = `212${digits}`;
   }
+  // already 212… → keep
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+export function openCustomerWhatsApp(phone: string, message: string) {
+  const href = customerWhatsAppHref(phone, message);
+  if (typeof window !== 'undefined') {
+    window.open(href, '_blank', 'noopener,noreferrer');
+  }
+  return href;
 }
 
 export function buildCallCenterConfirmMessage(order: {
