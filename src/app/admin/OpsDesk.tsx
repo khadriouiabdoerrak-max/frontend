@@ -236,6 +236,7 @@ export default function OpsDesk() {
   const [courier, setCourier] = useState('ozone');
   const [tracking, setTracking] = useState('');
   const [shipCity, setShipCity] = useState('');
+  const [shipAddress, setShipAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [ozoneReady, setOzoneReady] = useState(false);
   const [query, setQuery] = useState('');
@@ -260,6 +261,7 @@ export default function OpsDesk() {
     setShowReporte(false);
     const found = orders.find((o) => o.order_number === id);
     setShipCity(found?.city || '');
+    setShipAddress(found?.address || '');
     setTracking(found?.tracking_number || '');
   };
 
@@ -422,6 +424,8 @@ export default function OpsDesk() {
   useEffect(() => {
     setNotes(active?.notes || '');
     setTracking(active?.tracking_number || '');
+    setShipCity(active?.city || '');
+    setShipAddress(active?.address || '');
     setShowCancel(false);
     setShowReporte(false);
     setCopied(false);
@@ -474,6 +478,7 @@ export default function OpsDesk() {
         tracking_number: withProvider ? '' : tracking,
         create_with_provider: withProvider,
         city: shipCity.trim() || undefined,
+        address: shipAddress.trim() || undefined,
       });
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
@@ -1004,15 +1009,7 @@ export default function OpsDesk() {
                 </p>
               </div>
 
-              <div className="text-sm space-y-1.5 rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
-                <p>
-                  <span className="text-[#6a5648]">Ville: </span>
-                  {active.city}
-                </p>
-                <p>
-                  <span className="text-[#6a5648]">Adresse: </span>
-                  {active.address}
-                </p>
+              <div className="text-sm space-y-2 rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
                 <p>
                   <span className="text-[#6a5648]">Produits: </span>
                   {active.products}
@@ -1029,6 +1026,47 @@ export default function OpsDesk() {
                     {active.tracking_number}
                   </p>
                 ) : null}
+                <label className="block">
+                  <span className="text-[#6a5648] text-xs font-bold">
+                    المدينة
+                  </span>
+                  <input
+                    value={shipCity}
+                    onChange={(e) => setShipCity(e.target.value)}
+                    className="mt-1 w-full p-2.5 rounded-lg border border-[#e6d9cc] bg-white"
+                    placeholder="Casablanca – Centre Ville"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[#6a5648] text-xs font-bold">
+                    العنوان
+                  </span>
+                  <textarea
+                    value={shipAddress}
+                    onChange={(e) => setShipAddress(e.target.value)}
+                    rows={2}
+                    className="mt-1 w-full p-2.5 rounded-lg border border-[#e6d9cc] bg-white resize-none"
+                    placeholder="الحي، الشارع..."
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={
+                    busy ||
+                    (shipCity.trim() === (active.city || '') &&
+                      shipAddress.trim() === (active.address || ''))
+                  }
+                  onClick={() =>
+                    void patch(active.order_number, {
+                      status: active.status,
+                      city: shipCity.trim(),
+                      address: shipAddress.trim(),
+                    })
+                  }
+                  className="w-full py-2.5 rounded-lg border-2 border-[#2a1810] font-bold text-sm disabled:opacity-40"
+                >
+                  حفظ المدينة والعنوان
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1204,15 +1242,6 @@ export default function OpsDesk() {
                 active.status === 'READY_TO_SHIP') && (
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-[#6a5648]">Expédition</p>
-                  <label className="block text-xs text-[#6a5648]">
-                    المدينة (صلّحيها إلا ما مشاتش)
-                    <input
-                      value={shipCity}
-                      onChange={(e) => setShipCity(e.target.value)}
-                      placeholder="مثال: Casablanca – Centre Ville"
-                      className="mt-1 w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
-                    />
-                  </label>
                   <div className="flex flex-wrap gap-2">
                     {COURIERS.map((c) => (
                       <button
