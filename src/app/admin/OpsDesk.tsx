@@ -36,7 +36,6 @@ import {
   ADMIN_TOKEN_KEY,
   CANCEL_REASONS,
   COURIER_PREF_KEY,
-  OPS_OPERATOR_KEY,
   AdminOrder,
   AdminStats,
   buildCourierCopyLine,
@@ -87,8 +86,6 @@ type AuditEvent = {
   detail: string;
   created_at: string;
 };
-
-const DEFAULT_OPERATORS = ['سارة', 'يوسف', 'أمين'];
 
 const MODES: { id: Mode; label: string }[] = [
   { id: 'board', label: 'لوحة' },
@@ -282,8 +279,6 @@ export default function OpsDesk() {
   const [filterYear, setFilterYear] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterDay, setFilterDay] = useState('');
-  const [operator, setOperator] = useState('');
-  const [operators, setOperators] = useState<string[]>(DEFAULT_OPERATORS);
   const [newOrderCount, setNewOrderCount] = useState(0);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
 
@@ -339,12 +334,7 @@ export default function OpsDesk() {
       } else primed.current = true;
       knownNew.current = new Set(freshIds);
       setOrders(next);
-      if (data.stats) {
-        setStats(data.stats);
-        if (data.stats.operators?.length) {
-          setOperators(data.stats.operators);
-        }
-      }
+      if (data.stats) setStats(data.stats);
       setToken(secret);
       sessionStorage.setItem(ADMIN_TOKEN_KEY, secret);
     } catch (err) {
@@ -363,11 +353,9 @@ export default function OpsDesk() {
 
   useEffect(() => {
     const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
-    const savedOp = sessionStorage.getItem(OPS_OPERATOR_KEY);
     const pref = localStorage.getItem(COURIER_PREF_KEY);
     if (pref) setCourier(pref);
     else setCourier('ozone');
-    if (savedOp?.trim()) setOperator(savedOp.trim());
     if (saved) void load(saved);
     else setBooting(false);
   }, [load]);
@@ -599,7 +587,7 @@ export default function OpsDesk() {
     setBusy(true);
     setError('');
     try {
-      const updated = await patchAdminOrder(token, id, body, operator);
+      const updated = await patchAdminOrder(token, id, body);
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
@@ -633,18 +621,13 @@ export default function OpsDesk() {
     setBusy(true);
     setError('');
     try {
-      const updated = await shipAdminOrder(
-        token,
-        id,
-        {
-          courier_name: withProvider ? 'ozone' : courier,
-          tracking_number: withProvider ? '' : tracking,
-          create_with_provider: withProvider,
-          city: shipCity.trim() || undefined,
-          address: shipAddress.trim() || undefined,
-        },
-        operator,
-      );
+      const updated = await shipAdminOrder(token, id, {
+        courier_name: withProvider ? 'ozone' : courier,
+        tracking_number: withProvider ? '' : tracking,
+        create_with_provider: withProvider,
+        city: shipCity.trim() || undefined,
+        address: shipAddress.trim() || undefined,
+      });
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
@@ -692,7 +675,7 @@ export default function OpsDesk() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [detailOpen, active, showCancel, showReporte, busy, operator, token]);
+  }, [detailOpen, active, showCancel, showReporte, busy, token]);
 
   if (booting) {
     return (
@@ -733,37 +716,9 @@ export default function OpsDesk() {
             disabled={loading || !pin.trim()}
             className="w-full py-3.5 rounded-xl bg-[#2a1810] text-white font-bold disabled:opacity-50"
           >
-            دخول
+            سير
           </button>
         </form>
-      </div>
-    );
-  }
-
-  if (!operator) {
-    return (
-      <div className="min-h-[100dvh] bg-[#f5f0ea] flex items-center justify-center px-4">
-        <div className="w-full max-w-sm bg-white border border-[#e6d9cc] rounded-2xl p-6 space-y-4">
-          <div className="text-center space-y-1">
-            <h1 className="text-xl font-bold text-[#2a1810]">من يشغّل؟</h1>
-            <p className="text-sm text-[#6a5648]">اختر اسمك قبل الدخول</p>
-          </div>
-          <div className="grid gap-2">
-            {operators.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => {
-                  setOperator(name);
-                  sessionStorage.setItem(OPS_OPERATOR_KEY, name);
-                }}
-                className="w-full py-3.5 rounded-xl border-2 border-[#2a1810] font-bold text-[#2a1810] hover:bg-[#2a1810] hover:text-white"
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     );
   }
@@ -861,9 +816,6 @@ export default function OpsDesk() {
         <div className="mx-auto max-w-[1400px] px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <h1 className="font-bold text-lg shrink-0">تاجكِ تشغيل</h1>
-            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 font-bold">
-              {operator}
-            </span>
             {newOrderCount > 0 ? (
               <button
                 type="button"
@@ -907,9 +859,7 @@ export default function OpsDesk() {
               type="button"
               onClick={() => {
                 sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-                sessionStorage.removeItem(OPS_OPERATOR_KEY);
                 setToken('');
-                setOperator('');
                 setOrders([]);
                 setStats(null);
               }}
