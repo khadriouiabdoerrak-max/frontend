@@ -1,0 +1,141 @@
+export type AdminOrder = {
+  order_number: string;
+  created_at: string;
+  customer_name: string;
+  phone: string;
+  city: string;
+  address: string;
+  products: string;
+  subtotal: number;
+  shipping_fee: number;
+  total_amount: number;
+  status: string;
+  status_label: string;
+  notes?: string;
+  cancel_reason?: string;
+  tracking_number?: string;
+  courier_name?: string;
+  confirmed_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  returned_at?: string | null;
+};
+
+export type AdminStats = {
+  today: number;
+  pending: number;
+  confirmed: number;
+  ready_to_ship: number;
+  shipped: number;
+  delivered: number;
+  returned: number;
+  cancelled: number;
+  total: number;
+};
+
+export const ADMIN_TOKEN_KEY = 'oxiprime-admin-token';
+export const COURIER_PREF_KEY = 'oxiprime-default-courier';
+
+export const CANCEL_REASONS = [
+  'رفض الزبونة',
+  'رقم غلط',
+  'ثمن مرتفع',
+  'طلب مكرر',
+  'خارج منطقة التوصيل',
+  'أخرى',
+] as const;
+
+export function formatAdminDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('ar-MA', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+export function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
+}
+
+export function copyText(text: string) {
+  return navigator.clipboard.writeText(text);
+}
+
+export function buildCourierCopyLine(o: AdminOrder) {
+  return [
+    o.order_number,
+    o.customer_name,
+    o.phone,
+    o.city,
+    o.address,
+    o.products,
+    `${o.total_amount} DH`,
+    o.notes || '',
+  ].join(' | ');
+}
+
+export async function fetchAdminOrders(token: string, status?: string) {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await fetch(`/api/admin/orders${qs}`, {
+    headers: { 'X-Admin-Token': token },
+    cache: 'no-store',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل التحميل');
+  return data as {
+    total: number;
+    orders: AdminOrder[];
+    stats?: AdminStats;
+  };
+}
+
+export async function patchAdminOrder(
+  token: string,
+  orderNumber: string,
+  body: Record<string, unknown>,
+) {
+  const res = await fetch(
+    `/api/admin/orders/${encodeURIComponent(orderNumber)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': token,
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل تحديث الحالة');
+  return data as AdminOrder;
+}
+
+export async function shipAdminOrder(
+  token: string,
+  orderNumber: string,
+  body: {
+    courier_name?: string;
+    tracking_number?: string;
+    create_with_provider?: boolean;
+  },
+) {
+  const res = await fetch(
+    `/api/admin/orders/${encodeURIComponent(orderNumber)}/ship`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': token,
+      },
+      body: JSON.stringify(body),
+      cache: 'no-store',
+    },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل الشحن');
+  return data as AdminOrder;
+}

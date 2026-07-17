@@ -1,25 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/backend';
 
-function adminTokenFrom(request: Request): string {
-  return (
+export async function GET(request: Request) {
+  const token =
     request.headers.get('x-admin-token') ||
     new URL(request.url).searchParams.get('token') ||
-    ''
-  );
-}
+    '';
 
-export async function GET(request: Request) {
-  const token = adminTokenFrom(request);
   if (!token) {
     return NextResponse.json({ detail: 'رمز الدخول مطلوب' }, { status: 401 });
   }
 
-  const status = new URL(request.url).searchParams.get('status');
-  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-
   try {
-    const response = await fetch(`${getBackendUrl()}/api/v1/admin/orders${qs}`, {
+    const response = await fetch(`${getBackendUrl()}/api/v1/admin/couriers`, {
       headers: { 'X-Admin-Token': token },
       cache: 'no-store',
     });

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   Lock,
@@ -10,60 +10,62 @@ import {
   Phone,
   PhoneMissed,
   RefreshCw,
+  Truck,
   X,
 } from 'lucide-react';
 import {
   buildCallCenterConfirmMessage,
   customerWhatsAppHref,
 } from '@/lib/whatsapp';
-
-type AdminOrder = {
-  order_number: string;
-  created_at: string;
-  customer_name: string;
-  phone: string;
-  city: string;
-  address: string;
-  products: string;
-  subtotal: number;
-  shipping_fee: number;
-  total_amount: number;
-  status: string;
-  status_label: string;
-  notes?: string;
-};
+import {
+  ADMIN_TOKEN_KEY,
+  CANCEL_REASONS,
+  AdminOrder,
+  fetchAdminOrders,
+  formatAdminDate,
+  patchAdminOrder,
+  telHref,
+} from '@/lib/admin';
 
 type StatusFilter =
-  | 'ALL'
+  | 'QUEUE'
   | 'PENDING_CONFIRMATION'
-  | 'CONFIRMED'
   | 'NO_ANSWER'
-  | 'CANCELLED';
-
-const STORAGE_KEY = 'oxiprime-admin-token';
+  | 'CONFIRMED'
+  | 'CANCELLED'
+  | 'ALL';
 
 const FILTERS: { id: StatusFilter; label: string }[] = [
-  { id: 'ALL', label: 'الكل' },
-  { id: 'PENDING_CONFIRMATION', label: 'قيد التأكيد' },
+  { id: 'QUEUE', label: 'الطابور' },
+  { id: 'PENDING_CONFIRMATION', label: 'جديد' },
   { id: 'NO_ANSWER', label: 'ما جاوبش' },
   { id: 'CONFIRMED', label: 'مؤكد' },
   { id: 'CANCELLED', label: 'ملغى' },
+  { id: 'ALL', label: 'الكل' },
 ];
 
-function formatDate(iso: string) {
+function playChime() {
   try {
-    return new Date(iso).toLocaleString('ar-MA', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
+    const Ctx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.value = 0.04;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => {
+      osc.stop();
+      void ctx.close();
+    }, 180);
   } catch {
-    return iso;
+    /* ignore */
   }
-}
-
-function telHref(phone: string) {
-  const cleaned = phone.replace(/[^\d+]/g, '');
-  return `tel:${cleaned}`;
 }
 
 export default function ConfirmDeskClient() {
@@ -73,28 +75,40 @@ export default function ConfirmDeskClient() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
-  const [filter, setFilter] = useState<StatusFilter>('PENDING_CONFIRMATION');
+  const [filter, setFilter] = useState<StatusFilter>('QUEUE');
   const [updating, setUpdating] = useState<string | null>(null);
+  const knownPending = useRef<Set<string>>(new Set());
+  const primed = useRef(false);
 
-  const loadOrders = useCallback(async (secret: string) => {
-    setLoading(true);
+  const loadOrders = useCallback(async (secret: string, silent = false) => {
+    if (!silent) setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/orders', {
-        headers: { 'X-Admin-Token': secret },
-        cache: 'no-store',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.detail || 'فشل التحميل');
+      const data = await fetchAdminOrders(secret);
+      const next = data.orders || [];
+      const pendingIds = next
+        .filter((o) => o.status === 'PENDING_CONFIRMATION')
+        .map((o) => o.order_number);
+
+      if (primed.current) {
+        const fresh = pendingIds.filter((id) => !knownPending.current.has(id));
+        if (fresh.length > 0) {
+          playChime();
+          document.title = `(${fresh.length}+) تأكيد الطلبات | تاجكِ`;
+        }
+      } else {
+        primed.current = true;
       }
-      setOrders(data.orders || []);
+      knownPending.current = new Set(pendingIds);
+      setOrders(next);
       setToken(secret);
-      sessionStorage.setItem(STORAGE_KEY, secret);
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, secret);
     } catch (err) {
-      setOrders([]);
-      setToken('');
-      sessionStorage.removeItem(STORAGE_KEY);
+      if (!silent) {
+        setOrders([]);
+        setToken('');
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      }
       setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
     } finally {
       setLoading(false);
@@ -103,50 +117,63 @@ export default function ConfirmDeskClient() {
   }, []);
 
   useEffect(() => {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      void loadOrders(saved);
-    } else {
-      setBooting(false);
-    }
+    const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (saved) void loadOrders(saved);
+    else setBooting(false);
   }, [loadOrders]);
 
+  useEffect(() => {
+    if (!token) return;
+    const id = window.setInterval(() => {
+      void loadOrders(token, true);
+    }, 20000);
+    return () => window.clearInterval(id);
+  }, [token, loadOrders]);
+
   const filtered = useMemo(() => {
-    if (filter === 'ALL') return orders;
-    return orders.filter((o) => o.status === filter);
+    let list = orders;
+    if (filter === 'QUEUE') {
+      list = orders.filter(
+        (o) =>
+          o.status === 'PENDING_CONFIRMATION' || o.status === 'NO_ANSWER',
+      );
+    } else if (filter !== 'ALL') {
+      list = orders.filter((o) => o.status === filter);
+    }
+    return [...list].sort((a, b) => {
+      const rank = (s: string) =>
+        s === 'PENDING_CONFIRMATION' ? 0 : s === 'NO_ANSWER' ? 1 : 2;
+      const d = rank(a.status) - rank(b.status);
+      if (d !== 0) return d;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   }, [orders, filter]);
 
   const pendingCount = orders.filter(
     (o) => o.status === 'PENDING_CONFIRMATION' || o.status === 'NO_ANSWER',
   ).length;
+  const brandNew = orders.filter(
+    (o) => o.status === 'PENDING_CONFIRMATION',
+  ).length;
 
   const updateStatus = async (
     orderNumber: string,
     status: string,
-    notes?: string,
+    extra?: { notes?: string; cancel_reason?: string },
   ) => {
     if (!token) return;
     setUpdating(orderNumber);
     setError('');
     try {
-      const res = await fetch(
-        `/api/admin/orders/${encodeURIComponent(orderNumber)}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Admin-Token': token,
-          },
-          body: JSON.stringify({ status, notes: notes ?? null }),
-        },
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.detail || 'فشل تحديث الحالة');
-      }
+      const data = await patchAdminOrder(token, orderNumber, {
+        status,
+        notes: extra?.notes ?? null,
+        cancel_reason: extra?.cancel_reason ?? null,
+      });
       setOrders((prev) =>
         prev.map((o) => (o.order_number === orderNumber ? { ...o, ...data } : o)),
       );
+      if (pendingCount <= 1) document.title = 'تأكيد الطلبات | تاجكِ';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
     } finally {
@@ -155,10 +182,11 @@ export default function ConfirmDeskClient() {
   };
 
   const logout = () => {
-    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
     setToken('');
     setOrders([]);
     setInput('');
+    document.title = 'تأكيد الطلبات | تاجكِ';
   };
 
   if (booting) {
@@ -214,17 +242,24 @@ export default function ConfirmDeskClient() {
       <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-cocoa">مكان التأكيد</h1>
+            <h1 className="text-xl font-bold text-cocoa">مكتب التأكيد</h1>
             <p className="text-sm text-muted-brown">
-              {pendingCount} خاصهم اتصال · {filtered.length} معروض
+              {brandNew} جديد · {pendingCount} فالطابور · تحديث تلقائي
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
+              href="/admin/shipping"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-btn border border-champagne/50 text-sm text-cocoa hover:bg-ivory"
+            >
+              <Truck className="w-4 h-4" />
+              الشحن
+            </Link>
+            <Link
               href="/admin/sales"
               className="inline-flex items-center px-3 py-2 rounded-btn border border-champagne/50 text-sm text-cocoa hover:bg-ivory"
             >
-              المبيعات
+              المراقبة
             </Link>
             <button
               type="button"
@@ -259,12 +294,15 @@ export default function ConfirmDeskClient() {
               }`}
             >
               {f.label}
+              {f.id === 'QUEUE' ? ` (${pendingCount})` : ''}
             </button>
           ))}
         </div>
 
         {error ? (
-          <p className="text-sm text-error bg-error/10 rounded-btn px-3 py-2">{error}</p>
+          <p className="text-sm text-error bg-error/10 rounded-btn px-3 py-2">
+            {error}
+          </p>
         ) : null}
 
         <div className="space-y-3">
@@ -279,15 +317,21 @@ export default function ConfirmDeskClient() {
                 o.phone,
                 buildCallCenterConfirmMessage(o),
               );
+              const isNew = o.status === 'PENDING_CONFIRMATION';
               return (
                 <article
                   key={o.order_number}
-                  className="rounded-xl border border-champagne/40 bg-ivory p-4 space-y-3"
+                  className={`rounded-xl border bg-ivory p-4 space-y-3 ${
+                    isNew
+                      ? 'border-gold shadow-[0_0_0_1px_rgba(184,148,90,0.35)]'
+                      : 'border-champagne/40'
+                  }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <p className="font-mono text-xs text-muted-brown">
-                        {o.order_number} · {formatDate(o.created_at)}
+                        {o.order_number} · {formatAdminDate(o.created_at)}
+                        {isNew ? ' · جديد' : ''}
                       </p>
                       <h2 className="text-lg font-bold text-cocoa">
                         {o.customer_name}
@@ -305,6 +349,9 @@ export default function ConfirmDeskClient() {
                   <p className="font-bold text-cocoa">{o.total_amount} DH</p>
                   {o.notes ? (
                     <p className="text-xs text-muted-brown">ملاحظة: {o.notes}</p>
+                  ) : null}
+                  {o.cancel_reason ? (
+                    <p className="text-xs text-error">سبب الإلغاء: {o.cancel_reason}</p>
                   ) : null}
 
                   <div className="flex flex-wrap gap-2">
@@ -343,11 +390,9 @@ export default function ConfirmDeskClient() {
                       type="button"
                       disabled={busy || o.status === 'NO_ANSWER'}
                       onClick={() =>
-                        void updateStatus(
-                          o.order_number,
-                          'NO_ANSWER',
-                          'ما جاوبش — إعادة اتصال',
-                        )
+                        void updateStatus(o.order_number, 'NO_ANSWER', {
+                          notes: 'ما جاوبش — إعادة اتصال',
+                        })
                       }
                       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-btn border border-amber-600 text-amber-800 text-sm font-bold disabled:opacity-40"
                     >
@@ -359,31 +404,34 @@ export default function ConfirmDeskClient() {
                       disabled={busy || o.status === 'CANCELLED'}
                       onClick={() => {
                         const reason =
-                          window.prompt('سبب الإلغاء (اختياري):') ?? '';
-                        void updateStatus(
-                          o.order_number,
-                          'CANCELLED',
-                          reason.trim() || 'ملغى من التأكيد',
-                        );
+                          window.prompt(
+                            `سبب الإلغاء:\n${CANCEL_REASONS.join(' · ')}`,
+                            CANCEL_REASONS[0],
+                          ) ?? '';
+                        if (!reason.trim()) return;
+                        void updateStatus(o.order_number, 'CANCELLED', {
+                          cancel_reason: reason.trim(),
+                          notes: reason.trim(),
+                        });
                       }}
                       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-btn border border-error text-error text-sm font-bold disabled:opacity-40"
                     >
                       <X className="w-4 h-4" />
                       إلغاء
                     </button>
-                    {o.status !== 'PENDING_CONFIRMATION' ? (
+                    {o.status !== 'PENDING_CONFIRMATION' &&
+                    (o.status === 'NO_ANSWER' ||
+                      o.status === 'CANCELLED' ||
+                      o.status === 'CONFIRMED') ? (
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() =>
-                          void updateStatus(
-                            o.order_number,
-                            'PENDING_CONFIRMATION',
-                          )
+                          void updateStatus(o.order_number, 'PENDING_CONFIRMATION')
                         }
                         className="inline-flex items-center px-3 py-2 rounded-btn border border-champagne/50 text-sm text-muted-brown disabled:opacity-40"
                       >
-                        رجّع لقيد التأكيد
+                        رجّع للطابور
                       </button>
                     ) : null}
                   </div>
