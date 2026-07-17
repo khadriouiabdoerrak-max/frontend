@@ -17,6 +17,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { orderNumber } = await context.params;
   const body = await request.text();
+  const operator = request.headers.get('x-ops-operator') || '';
 
   try {
     const response = await fetch(
@@ -26,6 +27,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         headers: {
           'Content-Type': 'application/json',
           'X-Admin-Token': token,
+          ...(operator ? { 'X-Ops-Operator': operator } : {}),
         },
         body,
         cache: 'no-store',

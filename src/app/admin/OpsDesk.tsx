@@ -36,11 +36,13 @@ import {
   ADMIN_TOKEN_KEY,
   CANCEL_REASONS,
   COURIER_PREF_KEY,
+  OPS_OPERATOR_KEY,
   AdminOrder,
   AdminStats,
   buildCourierCopyLine,
   copyText,
   fetchAdminOrders,
+  fetchOrderAudit,
   formatAdminDate,
   hasRealTracking,
   orderDateParts,
@@ -51,6 +53,14 @@ import {
   telHref,
   timeAgo,
 } from '@/lib/admin';
+import {
+  buildCourierBatchText,
+  isCallTodayQueue,
+  nextAppelStatus,
+  phoneRiskInfo,
+  printCourierList,
+  todayConfirmedForCourier,
+} from '@/lib/opsQueue';
 import { CitySelect } from '@/components/ui/CitySelect';
 import { STALE_SHIP_DAYS } from '@/lib/cities';
 
@@ -58,6 +68,7 @@ type Mode = 'board' | 'orders' | 'ship';
 
 type PipeFilter =
   | 'all'
+  | 'call_today'
   | 'en_attente'
   | 'appel_1'
   | 'appel_2'
@@ -69,6 +80,15 @@ type PipeFilter =
   | 'delivered'
   | 'returned'
   | 'cancelled';
+
+type AuditEvent = {
+  operator: string;
+  action: string;
+  detail: string;
+  created_at: string;
+};
+
+const DEFAULT_OPERATORS = ['سارة', 'يوسف', 'أمين'];
 
 const MODES: { id: Mode; label: string }[] = [
   { id: 'board', label: 'لوحة' },
@@ -89,17 +109,22 @@ function playChime() {
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext;
     const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.value = 0.04;
-    osc.start();
-    setTimeout(() => {
-      osc.stop();
-      void ctx.close();
-    }, 150);
+    const beep = (at: number, freq: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.08, at);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.2);
+      osc.start(at);
+      osc.stop(at + 0.22);
+    };
+    const t0 = ctx.currentTime;
+    beep(t0, 880);
+    beep(t0 + 0.24, 988);
+    beep(t0 + 0.48, 1175);
+    setTimeout(() => void ctx.close(), 900);
   } catch {
     /* ignore */
   }
@@ -195,13 +220,6 @@ function daysLabel(o: AdminOrder) {
   return `${open} ي · ${inSt} فالحالة`;
 }
 
-function phoneRisk(orders: AdminOrder[], phone: string) {
-  const same = orders.filter((o) => o.phone === phone);
-  const cancelled = same.filter((o) => o.status === 'CANCELLED').length;
-  const returned = same.filter((o) => o.status === 'RETURNED').length;
-  return { cancelled, returned, risky: cancelled + returned >= 2 };
-}
-
 function parseMode(tab: string | null): Mode {
   if (tab === 'ship' || tab === 'shipping') return 'ship';
   if (
@@ -264,6 +282,10 @@ export default function OpsDesk() {
   const [filterYear, setFilterYear] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterDay, setFilterDay] = useState('');
+  const [operator, setOperator] = useState('');
+  const [operators, setOperators] = useState<string[]>(DEFAULT_OPERATORS);
+  const [newOrderCount, setNewOrderCount] = useState(0);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
 
   const knownNew = useRef<Set<string>>(new Set());
   const primed = useRef(false);
@@ -274,7 +296,10 @@ export default function OpsDesk() {
     setShowReporte(false);
     setDetailOpen(false);
     if (m === 'ship') setPipe('confirmed');
-    else if (m === 'orders') setPipe('all');
+    else if (m === 'orders') {
+      setPipe('all');
+      setNewOrderCount(0);
+    }
     router.replace(`/admin?tab=${modeQuery(m)}`, { scroll: false });
   };
 
@@ -307,11 +332,19 @@ export default function OpsDesk() {
         .map((o) => o.order_number);
       if (primed.current) {
         const brand = freshIds.filter((id) => !knownNew.current.has(id));
-        if (brand.length) playChime();
+        if (brand.length) {
+          playChime();
+          setNewOrderCount((n) => n + brand.length);
+        }
       } else primed.current = true;
       knownNew.current = new Set(freshIds);
       setOrders(next);
-      if (data.stats) setStats(data.stats);
+      if (data.stats) {
+        setStats(data.stats);
+        if (data.stats.operators?.length) {
+          setOperators(data.stats.operators);
+        }
+      }
       setToken(secret);
       sessionStorage.setItem(ADMIN_TOKEN_KEY, secret);
     } catch (err) {
@@ -330,9 +363,11 @@ export default function OpsDesk() {
 
   useEffect(() => {
     const saved = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    const savedOp = sessionStorage.getItem(OPS_OPERATOR_KEY);
     const pref = localStorage.getItem(COURIER_PREF_KEY);
     if (pref) setCourier(pref);
     else setCourier('ozone');
+    if (savedOp?.trim()) setOperator(savedOp.trim());
     if (saved) void load(saved);
     else setBooting(false);
   }, [load]);
@@ -369,6 +404,7 @@ export default function OpsDesk() {
   const pipeCounts = useMemo(() => {
     const c: Record<PipeFilter, number> = {
       all: orders.length,
+      call_today: 0,
       en_attente: 0,
       appel_1: 0,
       appel_2: 0,
@@ -384,6 +420,7 @@ export default function OpsDesk() {
     for (const o of orders) {
       c[stageOf(o)] += 1;
       if (isStaleShip(o)) c.stale += 1;
+      if (isCallTodayQueue(o)) c.call_today += 1;
     }
     return c;
   }, [orders]);
@@ -438,6 +475,14 @@ export default function OpsDesk() {
       } else if (pipe === 'stale') {
         list = list.filter(isStaleShip);
       }
+    } else if (pipe === 'call_today') {
+      list = list
+        .filter(isCallTodayQueue)
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime(),
+        );
     } else if (pipe === 'stale') {
       list = list.filter(isStaleShip);
     } else if (pipe !== 'all') {
@@ -526,6 +571,25 @@ export default function OpsDesk() {
     }
   }, [active?.order_number]);
 
+  useEffect(() => {
+    if (!detailOpen || !activeId || !token) {
+      setAuditEvents([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await fetchOrderAudit(token, activeId);
+        if (!cancelled) setAuditEvents((data.events || []).slice(0, 5));
+      } catch {
+        if (!cancelled) setAuditEvents([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailOpen, activeId, token, active?.status, active?.notes]);
+
   const patch = async (
     id: string,
     body: Record<string, unknown>,
@@ -535,7 +599,7 @@ export default function OpsDesk() {
     setBusy(true);
     setError('');
     try {
-      const updated = await patchAdminOrder(token, id, body);
+      const updated = await patchAdminOrder(token, id, body, operator);
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
@@ -550,18 +614,37 @@ export default function OpsDesk() {
     }
   };
 
+  const markNoAnswer = (o: AdminOrder) => {
+    const next = nextAppelStatus(o.status);
+    const stamp = new Date().toLocaleString('fr-MA');
+    void patch(o.order_number, {
+      status: next,
+      append_note: `ما جاوبش · ${stamp}`,
+      mark_contacted: true,
+    });
+  };
+
   const doShip = async (id: string, withProvider = false) => {
     if (!token) return;
+    if (shipCity.trim().length < 2 || shipAddress.trim().length < 8) {
+      setError('المدينة والعنوان ناقصين — المدينة ≥ 2 والعنوان ≥ 8 أحرف');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      const updated = await shipAdminOrder(token, id, {
-        courier_name: withProvider ? 'ozone' : courier,
-        tracking_number: withProvider ? '' : tracking,
-        create_with_provider: withProvider,
-        city: shipCity.trim() || undefined,
-        address: shipAddress.trim() || undefined,
-      });
+      const updated = await shipAdminOrder(
+        token,
+        id,
+        {
+          courier_name: withProvider ? 'ozone' : courier,
+          tracking_number: withProvider ? '' : tracking,
+          create_with_provider: withProvider,
+          city: shipCity.trim() || undefined,
+          address: shipAddress.trim() || undefined,
+        },
+        operator,
+      );
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
@@ -579,6 +662,37 @@ export default function OpsDesk() {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!detailOpen || !active || showCancel || showReporte || busy) return;
+    const order = active;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDetail();
+        return;
+      }
+      if (!isConfirmQueue(order)) return;
+      if (e.key === '1') {
+        e.preventDefault();
+        markNoAnswer(order);
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        void patch(order.order_number, { status: 'CONFIRMED' });
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        setShowReporte(true);
+      } else if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        setShowCancel(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailOpen, active, showCancel, showReporte, busy, operator, token]);
 
   if (booting) {
     return (
@@ -626,8 +740,40 @@ export default function OpsDesk() {
     );
   }
 
-  const risk = active ? phoneRisk(orders, active.phone) : null;
+  if (!operator) {
+    return (
+      <div className="min-h-[100dvh] bg-[#f5f0ea] flex items-center justify-center px-4">
+        <div className="w-full max-w-sm bg-white border border-[#e6d9cc] rounded-2xl p-6 space-y-4">
+          <div className="text-center space-y-1">
+            <h1 className="text-xl font-bold text-[#2a1810]">من يشغّل؟</h1>
+            <p className="text-sm text-[#6a5648]">اختر اسمك قبل الدخول</p>
+          </div>
+          <div className="grid gap-2">
+            {operators.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => {
+                  setOperator(name);
+                  sessionStorage.setItem(OPS_OPERATOR_KEY, name);
+                }}
+                className="w-full py-3.5 rounded-xl border-2 border-[#2a1810] font-bold text-[#2a1810] hover:bg-[#2a1810] hover:text-white"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const risk = active
+    ? phoneRiskInfo(orders, active.phone, active.order_number)
+    : null;
   const activeStage = active ? stageOf(active) : null;
+  const shipAddrOk =
+    shipCity.trim().length >= 2 && shipAddress.trim().length >= 8;
 
   const orderFilters: { id: PipeFilter; label: string }[] =
     mode === 'ship'
@@ -638,6 +784,7 @@ export default function OpsDesk() {
           { id: 'all', label: 'Tout envoi' },
         ]
       : [
+          { id: 'call_today', label: 'طابور اليوم' },
           { id: 'all', label: 'الكل' },
           { id: 'en_attente', label: 'En Attente' },
           { id: 'appel_1', label: 'Appel 1' },
@@ -714,6 +861,24 @@ export default function OpsDesk() {
         <div className="mx-auto max-w-[1400px] px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <h1 className="font-bold text-lg shrink-0">تاجكِ تشغيل</h1>
+            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 font-bold">
+              {operator}
+            </span>
+            {newOrderCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setNewOrderCount(0);
+                  setPipe('call_today');
+                  setMode('orders');
+                  setDetailOpen(false);
+                  router.replace('/admin?tab=orders', { scroll: false });
+                }}
+                className="text-sm bg-red-600 text-white rounded-full px-3 py-1 tabular-nums font-bold animate-pulse"
+              >
+                +{newOrderCount} جديد
+              </button>
+            ) : null}
             <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
               {stats?.today ?? 0} اليوم
             </span>
@@ -723,6 +888,11 @@ export default function OpsDesk() {
             <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
               {shipReady} à expédier
             </span>
+            {(stats?.sheet_errors ?? 0) > 0 ? (
+              <span className="text-sm bg-amber-100 border border-amber-300 text-amber-900 rounded-full px-3 py-1 tabular-nums font-bold">
+                Sheet ⚠ {stats?.sheet_errors}
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -737,7 +907,9 @@ export default function OpsDesk() {
               type="button"
               onClick={() => {
                 sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+                sessionStorage.removeItem(OPS_OPERATOR_KEY);
                 setToken('');
+                setOperator('');
                 setOrders([]);
                 setStats(null);
               }}
@@ -786,6 +958,74 @@ export default function OpsDesk() {
               الشحن والتتبع.
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setNewOrderCount(0);
+              setPipe('call_today');
+              setMode('orders');
+              router.replace('/admin?tab=orders', { scroll: false });
+            }}
+            className="w-full text-right rounded-2xl border-2 border-[#2a1810] bg-[#2a1810] text-white p-5 hover:opacity-95"
+          >
+            <p className="text-sm opacity-80">ابدأ من هنا</p>
+            <p className="text-2xl font-bold mt-1">طابور اليوم</p>
+            <p className="text-4xl font-bold tabular-nums mt-2">
+              {pipeCounts.call_today}
+            </p>
+          </button>
+
+          {(stats?.sheet_errors ?? 0) > 0 ? (
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 font-bold">
+              أخطاء مزامنة Sheet: {stats?.sheet_errors} — راجع الطلبات ذات
+              sheet_sync_error
+            </div>
+          ) : null}
+
+          {stats?.weekly ? (
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4 space-y-3">
+              <p className="text-sm font-bold">إحصائيات الأسبوع</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-xs text-[#6a5648]">Confirm rate</p>
+                  <p className="text-2xl font-bold tabular-nums">
+                    {stats.weekly.confirm_rate}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#6a5648]">Return rate</p>
+                  <p className="text-2xl font-bold tabular-nums">
+                    {stats.weekly.return_rate}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#6a5648]">Confirmé</p>
+                  <p className="text-2xl font-bold tabular-nums">
+                    {stats.weekly.confirmed}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#6a5648]">Commandes</p>
+                  <p className="text-2xl font-bold tabular-nums">
+                    {stats.weekly.orders}
+                  </p>
+                </div>
+              </div>
+              {stats.weekly.top_cities?.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {stats.weekly.top_cities.slice(0, 5).map((c) => (
+                    <span
+                      key={c.city}
+                      className="text-xs px-3 py-1.5 rounded-full bg-[#faf6f1] border border-[#e6d9cc]"
+                    >
+                      {c.city}: <b>{c.count}</b>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
@@ -992,6 +1232,28 @@ export default function OpsDesk() {
               )}
               {mode === 'ship' ? (
                 <>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const batch = todayConfirmedForCourier(orders);
+                      await copyText(buildCourierBatchText(batch));
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1200);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm font-bold"
+                  >
+                    <Copy className="w-4 h-4" />
+                    {copied ? 'تم النسخ' : 'نسخ مؤكدي اليوم'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      printCourierList(todayConfirmedForCourier(orders))
+                    }
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm font-bold"
+                  >
+                    طباعة
+                  </button>
                   <button
                     type="button"
                     disabled={busy || !ozoneReady}
@@ -1249,9 +1511,26 @@ export default function OpsDesk() {
 
             <div className="p-4 sm:p-5 space-y-5">
               {risk?.risky ? (
-                <p className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                <div className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  Attention: annulations / retours fréquents sur ce numéro.
+                  <div>
+                    <p>
+                      Attention: annulations / retours / doublons sur ce numéro
+                      ({risk.cancelled} annul. · {risk.returned} ret.).
+                    </p>
+                    {risk.openDupes.length > 0 ? (
+                      <p className="mt-1 font-bold">
+                        Ouverts:{' '}
+                        {risk.openDupes.map((o) => o.order_number).join(', ')}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              {active.sheet_sync_error ? (
+                <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2 font-bold">
+                  Sheet sync: {active.sheet_sync_error}
                 </p>
               ) : null}
 
@@ -1267,6 +1546,17 @@ export default function OpsDesk() {
                   {active.total_amount}{' '}
                   <span className="text-sm text-[#6a5648]">DH COD</span>
                 </p>
+                {(active.last_contacted_at || active.last_operator) && (
+                  <p className="text-xs text-[#6a5648] mt-2">
+                    آخر اتصال:{' '}
+                    {active.last_contacted_at
+                      ? formatAdminDate(active.last_contacted_at)
+                      : '—'}
+                    {active.last_operator
+                      ? ` · ${active.last_operator}`
+                      : ''}
+                  </p>
+                )}
               </div>
 
               <div className="text-sm space-y-2 rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
@@ -1449,6 +1739,18 @@ export default function OpsDesk() {
                   <p className="text-xs font-bold text-[#6a5648]">
                     Confirmation
                   </p>
+                  <p className="text-[11px] text-[#6a5648]">
+                    اختصارات: 1 ما جاوبش · C تأكيد · R تأجيل · X إلغاء · Esc
+                  </p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => markNoAnswer(active)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-amber-700 text-amber-900 font-bold disabled:opacity-40"
+                  >
+                    <PhoneMissed className="w-4 h-4" />
+                    ما جاوبش
+                  </button>
                   <button
                     type="button"
                     disabled={busy}
@@ -1601,6 +1903,11 @@ export default function OpsDesk() {
                 active.status === 'READY_TO_SHIP') && (
                 <div className="space-y-3">
                   <p className="text-xs font-bold text-[#6a5648]">Expédition</p>
+                  {!shipAddrOk ? (
+                    <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                      أكمل المدينة (≥ 2) والعنوان (≥ 8) قبل الشحن.
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     {COURIERS.map((c) => (
                       <button
@@ -1633,8 +1940,16 @@ export default function OpsDesk() {
                   ) : (
                     <button
                       type="button"
-                      disabled={busy || !ozoneReady}
-                      onClick={() => setShipConfirm(true)}
+                      disabled={busy || !ozoneReady || !shipAddrOk}
+                      onClick={() => {
+                        if (!shipAddrOk) {
+                          setError(
+                            'المدينة والعنوان ناقصين — المدينة ≥ 2 والعنوان ≥ 8 أحرف',
+                          );
+                          return;
+                        }
+                        setShipConfirm(true);
+                      }}
                       className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#c45c26] text-white font-bold disabled:opacity-50"
                     >
                       <Truck className="w-4 h-4" />
@@ -1666,12 +1981,12 @@ export default function OpsDesk() {
                         </button>
                         <button
                           type="button"
-                          disabled={busy}
+                          disabled={busy || !shipAddrOk}
                           onClick={() => {
                             setShipConfirm(false);
                             void doShip(active.order_number, true);
                           }}
-                          className="py-2 rounded-lg bg-[#c45c26] text-white font-bold"
+                          className="py-2 rounded-lg bg-[#c45c26] text-white font-bold disabled:opacity-50"
                         >
                           نعم، إرسال
                         </button>
@@ -1693,9 +2008,9 @@ export default function OpsDesk() {
                   </button>
                   <button
                     type="button"
-                    disabled={busy}
+                    disabled={busy || !shipAddrOk}
                     onClick={() => void doShip(active.order_number, false)}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold disabled:opacity-50"
                   >
                     <Truck className="w-4 h-4" />
                     Expédié يدوي (En cours)
@@ -1783,6 +2098,30 @@ export default function OpsDesk() {
                   Sauver note
                 </button>
               </div>
+
+              {auditEvents.length > 0 ? (
+                <div className="rounded-xl border border-[#e6d9cc] bg-[#faf6f1] p-3 space-y-2">
+                  <p className="text-xs font-bold text-[#6a5648]">آخر الأحداث</p>
+                  <ul className="space-y-1.5 text-xs">
+                    {auditEvents.map((ev, i) => (
+                      <li
+                        key={`${ev.created_at}-${i}`}
+                        className="border-b border-[#e6d9cc]/60 pb-1.5 last:border-0"
+                      >
+                        <span className="font-bold">{ev.action}</span>
+                        {ev.operator ? ` · ${ev.operator}` : ''}
+                        <span className="text-[#6a5648]">
+                          {' '}
+                          · {formatAdminDate(ev.created_at)}
+                        </span>
+                        {ev.detail ? (
+                          <p className="text-[#6a5648] mt-0.5">{ev.detail}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

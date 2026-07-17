@@ -25,6 +25,22 @@ export type AdminOrder = {
   shipped_at?: string | null;
   delivered_at?: string | null;
   returned_at?: string | null;
+  last_contacted_at?: string | null;
+  last_operator?: string | null;
+  sheet_sync_error?: string | null;
+  sheet_synced_at?: string | null;
+};
+
+export type WeeklyStats = {
+  orders: number;
+  confirmed: number;
+  cancelled: number;
+  delivered: number;
+  returned: number;
+  confirm_rate: number;
+  return_rate: number;
+  top_cities: { city: string; count: number }[];
+  cancel_reasons: Record<string, number>;
 };
 
 export type AdminStats = {
@@ -50,6 +66,9 @@ export type AdminStats = {
   cancelled: number;
   cancel_reasons?: Record<string, number>;
   total: number;
+  sheet_errors?: number;
+  weekly?: WeeklyStats;
+  operators?: string[];
 };
 
 export function hasRealTracking(order?: {
@@ -60,6 +79,7 @@ export function hasRealTracking(order?: {
 }
 
 export const ADMIN_TOKEN_KEY = 'oxiprime-admin-token';
+export const OPS_OPERATOR_KEY = 'oxiprime-ops-operator';
 export const COURIER_PREF_KEY = 'oxiprime-default-courier';
 
 export const CANCEL_REASONS = [
@@ -151,6 +171,12 @@ export function buildCourierCopyLine(o: AdminOrder) {
   ].join(' | ');
 }
 
+function opsHeaders(token: string, operator?: string): HeadersInit {
+  const h: Record<string, string> = { 'X-Admin-Token': token };
+  if (operator?.trim()) h['X-Ops-Operator'] = operator.trim();
+  return h;
+}
+
 export async function fetchAdminOrders(token: string, status?: string) {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';
   const res = await fetch(`/api/admin/orders${qs}`, {
@@ -158,7 +184,12 @@ export async function fetchAdminOrders(token: string, status?: string) {
     cache: 'no-store',
   });
   const text = await res.text();
-  let data: { detail?: string; total?: number; orders?: AdminOrder[]; stats?: AdminStats } = {};
+  let data: {
+    detail?: string;
+    total?: number;
+    orders?: AdminOrder[];
+    stats?: AdminStats;
+  } = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
@@ -180,6 +211,7 @@ export async function patchAdminOrder(
   token: string,
   orderNumber: string,
   body: Record<string, unknown>,
+  operator?: string,
 ) {
   const res = await fetch(
     `/api/admin/orders/${encodeURIComponent(orderNumber)}`,
@@ -187,9 +219,12 @@ export async function patchAdminOrder(
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-Token': token,
+        ...opsHeaders(token, operator),
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        ...(operator?.trim() ? { operator: operator.trim() } : {}),
+      }),
       cache: 'no-store',
     },
   );
@@ -224,6 +259,7 @@ export async function shipAdminOrder(
     city?: string;
     address?: string;
   },
+  operator?: string,
 ) {
   const res = await fetch(
     `/api/admin/orders/${encodeURIComponent(orderNumber)}/ship`,
@@ -231,7 +267,7 @@ export async function shipAdminOrder(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Admin-Token': token,
+        ...opsHeaders(token, operator),
       },
       body: JSON.stringify(body),
       cache: 'no-store',
@@ -240,4 +276,24 @@ export async function shipAdminOrder(
   const data = await res.json();
   if (!res.ok) throw new Error(data?.detail || 'فشل الشحن');
   return data as AdminOrder;
+}
+
+export async function fetchOrderAudit(token: string, orderNumber: string) {
+  const res = await fetch(
+    `/api/admin/orders/${encodeURIComponent(orderNumber)}/audit`,
+    {
+      headers: { 'X-Admin-Token': token },
+      cache: 'no-store',
+    },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل السجل');
+  return data as {
+    events: {
+      operator: string;
+      action: string;
+      detail: string;
+      created_at: string;
+    }[];
+  };
 }

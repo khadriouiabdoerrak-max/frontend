@@ -5,31 +5,20 @@ type RouteContext = {
   params: Promise<{ orderNumber: string }>;
 };
 
-export async function POST(request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const token =
     request.headers.get('x-admin-token') ||
     new URL(request.url).searchParams.get('token') ||
     '';
-
   if (!token) {
     return NextResponse.json({ detail: 'رمز الدخول مطلوب' }, { status: 401 });
   }
-
   const { orderNumber } = await context.params;
-  const body = await request.text();
-  const operator = request.headers.get('x-ops-operator') || '';
-
   try {
     const response = await fetch(
-      `${getBackendUrl()}/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/ship`,
+      `${getBackendUrl()}/api/v1/admin/orders/${encodeURIComponent(orderNumber)}/audit`,
       {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Admin-Token': token,
-          ...(operator ? { 'X-Ops-Operator': operator } : {}),
-        },
-        body,
+        headers: { 'X-Admin-Token': token },
         cache: 'no-store',
       },
     );
