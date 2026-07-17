@@ -157,8 +157,19 @@ function stageOf(o: AdminOrder): PipeFilter {
 }
 
 function daysLabel(o: AdminOrder) {
-  const open = o.days_open ?? 0;
-  const inSt = o.days_in_status ?? open;
+  const open =
+    typeof o.days_open === 'number'
+      ? o.days_open
+      : Math.max(
+          0,
+          Math.floor(
+            (Date.now() - new Date(o.created_at).getTime()) / 86400000,
+          ),
+        );
+  const inSt =
+    typeof o.days_in_status === 'number'
+      ? o.days_in_status
+      : open;
   if (open <= 0 && inSt <= 0) return 'اليوم';
   if (open === inSt) return `${open} ي`;
   return `${open} ي · ${inSt} فالحالة`;
