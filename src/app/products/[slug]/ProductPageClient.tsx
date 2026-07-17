@@ -208,15 +208,15 @@ function BundlePage({
             </div>
           </div>
 
-          <div className="space-y-5 text-center lg:text-right lg:sticky lg:top-24">
+          <div className="space-y-5 text-center lg:text-right lg:sticky lg:top-24 min-w-0 w-full">
             <span className="inline-block bg-gold/15 text-gold text-xs font-bold px-3 py-1 rounded-badge">
               العرض الأفضل للزبونة اللي باغية نتيجة واضحة
             </span>
-            <div>
-              <h1 className="text-2xl sm:text-4xl font-bold text-cocoa leading-tight">
+            <div className="min-w-0 px-1">
+              <h1 className="text-2xl sm:text-4xl font-bold text-cocoa leading-snug break-words">
                 روتين OXIPRIME الكامل لإصلاح وترطيب الشعر
               </h1>
-              <p className="text-sm text-muted-brown mt-2">
+              <p className="text-sm text-muted-brown mt-2 break-words">
                 شامبو + بلسم + ماسك + سيروم — باك واحد، طلب واحد، نتيجة مرتبة
               </p>
             </div>
@@ -341,9 +341,9 @@ function BundlePage({
                   'الماسك بوحدو: كيغذي… ولكن الحماية من الحرارة ما كايناش',
                   'السيروم بوحدو: كيلمّع… ولكن الأساس ما تبنىش مزيان',
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-2">
+                  <li key={item} className="flex items-start gap-2 min-w-0">
                     <span className="text-muted-brown shrink-0">–</span>
-                    <span>{item}</span>
+                    <span className="min-w-0 flex-1 break-words">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -360,9 +360,9 @@ function BundlePage({
                   'تغذّي بعمق مرة أو جوج فالأسبوع',
                   'تحمي وتزيدي اللمعان قبل/بعد السشوار',
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-2">
+                  <li key={item} className="flex items-start gap-2 min-w-0">
                     <span className="text-success font-bold shrink-0">✓</span>
-                    <span>{item}</span>
+                    <span className="min-w-0 flex-1 break-words">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -408,9 +408,9 @@ function BundlePage({
                 'كنشتري شامبو وكنبدل بلا ما نشوف فرق',
                 'ما عنديش روتين واضح فالدار',
               ].map((item) => (
-                <li key={item} className="flex items-start gap-2">
+                <li key={item} className="flex items-start gap-2 min-w-0">
                   <span className="text-gold font-bold shrink-0">•</span>
-                  <span>{item}</span>
+                  <span className="min-w-0 flex-1 break-words">{item}</span>
                 </li>
               ))}
             </ul>
@@ -427,9 +427,9 @@ function BundlePage({
                 'بغيتي واحد يتصل بيك قبل الإرسال',
                 'بغيتي خطوات بسيطة: 1 ثم 2 ثم 3 ثم 4',
               ].map((item) => (
-                <li key={item} className="flex items-start gap-2">
+                <li key={item} className="flex items-start gap-2 min-w-0">
                   <span className="text-success font-bold shrink-0">✓</span>
-                  <span>{item}</span>
+                  <span className="min-w-0 flex-1 break-words">{item}</span>
                 </li>
               ))}
             </ul>
@@ -520,9 +520,9 @@ function BundlePage({
                 'نفشة أقل خصوصا مع السيروم',
                 'روتين واضح ما كيبقاش غير شامبو بوحدو',
               ].map((item) => (
-                <li key={item} className="flex items-start gap-2">
+                <li key={item} className="flex items-start gap-2 min-w-0">
                   <span className="text-success font-bold shrink-0">✓</span>
-                  <span>{item}</span>
+                  <span className="min-w-0 flex-1 break-words">{item}</span>
                 </li>
               ))}
             </ul>
@@ -626,15 +626,17 @@ function BundlePage({
                 <button
                   type="button"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between gap-3 text-right font-bold text-sm sm:text-base text-cocoa"
+                  className="w-full flex items-center justify-between gap-3 text-right font-bold text-sm sm:text-base text-cocoa min-w-0"
                 >
-                  <span>{faq.title}</span>
+                  <span className="min-w-0 flex-1 break-words leading-snug">
+                    {faq.title}
+                  </span>
                   <span className="text-gold shrink-0 text-lg">
                     {openFaq === i ? '−' : '+'}
                   </span>
                 </button>
                 {openFaq === i && (
-                  <p className="mt-3 text-sm text-secondary leading-relaxed">
+                  <p className="mt-3 text-sm text-secondary leading-relaxed break-words">
                     {faq.content}
                   </p>
                 )}
@@ -717,17 +719,20 @@ function SingleProductPage({
             <ProductImage product={product} />
           </div>
 
-          <div className="space-y-5 text-center lg:text-right">
+          <div className="space-y-5 text-center lg:text-right min-w-0 w-full overflow-visible">
             {product.step && (
               <span className="inline-block bg-gold/10 text-gold text-xs font-bold px-3 py-1 rounded-badge">
                 خطوة {product.step} — {product.stepLabel}
               </span>
             )}
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-cocoa leading-tight">
+            <div className="min-w-0 px-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-cocoa leading-snug break-words">
                 {product.nameAr}
               </h1>
-              <p className="text-sm text-muted-brown mt-1 font-sans">
+              <p
+                className="text-sm text-muted-brown mt-1 font-sans break-words"
+                dir="ltr"
+              >
                 {product.nameEn}
               </p>
             </div>
@@ -735,15 +740,22 @@ function SingleProductPage({
             <p className="text-3xl font-bold text-cocoa">
               {formatPrice(product.price)}
             </p>
-            <p className="text-sm text-secondary leading-relaxed">
+            <p className="text-sm text-secondary leading-relaxed break-words px-1">
               {product.descriptionAr}
             </p>
 
-            <ul className="space-y-2 text-sm text-secondary text-right">
+            <ul className="space-y-2.5 text-sm text-secondary text-right w-full min-w-0">
               {product.benefits.map((benefit) => (
-                <li key={benefit} className="flex items-start gap-2 justify-end lg:justify-start">
-                  <span>{benefit}</span>
-                  <span className="text-success font-bold shrink-0">✓</span>
+                <li
+                  key={benefit}
+                  className="flex items-start gap-2 w-full min-w-0"
+                >
+                  <span className="text-success font-bold shrink-0 leading-5">
+                    ✓
+                  </span>
+                  <span className="min-w-0 flex-1 break-words leading-relaxed">
+                    {benefit}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -759,12 +771,12 @@ function SingleProductPage({
                   ? 'تمت الإضافة ✓'
                   : `أضيفي للسلة — ${formatPrice(product.price)}`}
               </button>
-              <p className="text-xs text-muted-brown">
+              <p className="text-xs text-muted-brown break-words">
                 دفع عند الاستلام · تأكيد بالهاتف قبل الإرسال
               </p>
               <Link
                 href={`/products/${bundleProduct.slug}`}
-                className="block w-full border border-cocoa text-cocoa py-3 font-bold rounded-btn text-sm text-center hover:bg-cocoa/5 transition-colors"
+                className="block w-full border border-cocoa text-cocoa py-3 font-bold rounded-btn text-sm text-center hover:bg-cocoa/5 transition-colors break-words"
               >
                 الأفضل: الروتين الكامل — {formatPrice(bundleProduct.price)}
               </Link>
@@ -792,9 +804,9 @@ function SingleProductPage({
             <h2 className="text-xl font-bold mb-4">مناسب لمن؟</h2>
             <ul className="space-y-3 text-sm text-champagne/90">
               {(product.suitableFor ?? []).map((item) => (
-                <li key={item} className="flex items-start gap-2">
+                <li key={item} className="flex items-start gap-2 min-w-0">
                   <span className="text-gold font-bold shrink-0">✓</span>
-                  <span>{item}</span>
+                  <span className="min-w-0 flex-1 break-words">{item}</span>
                 </li>
               ))}
             </ul>
@@ -829,7 +841,7 @@ function SingleProductPage({
                         <div className="w-8 h-8 rounded-full bg-gold/15 text-gold flex items-center justify-center font-bold shrink-0 font-sans text-sm">
                           {index + 1}
                         </div>
-                        <p className="text-sm text-secondary leading-relaxed pt-1">
+                        <p className="text-sm text-secondary leading-relaxed pt-1 min-w-0 flex-1 break-words">
                           {step}
                         </p>
                       </div>
@@ -860,10 +872,10 @@ function SingleProductPage({
                   {(product.proTips ?? []).map((tip) => (
                     <li
                       key={tip}
-                      className="flex items-start gap-2 text-sm text-secondary"
+                      className="flex items-start gap-2 text-sm text-secondary min-w-0"
                     >
                       <span className="text-success font-bold shrink-0">✓</span>
-                      <span>{tip}</span>
+                      <span className="min-w-0 flex-1 break-words">{tip}</span>
                     </li>
                   ))}
                 </ul>
@@ -967,15 +979,17 @@ function SingleProductPage({
                   <button
                     type="button"
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                    className="w-full flex items-center justify-between gap-3 text-right font-bold text-sm text-cocoa"
+                    className="w-full flex items-center justify-between gap-3 text-right font-bold text-sm text-cocoa min-w-0"
                   >
-                    <span>{faq.title}</span>
+                    <span className="min-w-0 flex-1 break-words leading-snug">
+                      {faq.title}
+                    </span>
                     <span className="text-gold shrink-0">
                       {openFaq === i ? '−' : '+'}
                     </span>
                   </button>
                   {openFaq === i && (
-                    <p className="mt-2 text-sm text-secondary leading-relaxed">
+                    <p className="mt-2 text-sm text-secondary leading-relaxed break-words">
                       {faq.content}
                     </p>
                   )}
@@ -1008,8 +1022,8 @@ function SingleProductPage({
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
-                  <div className="p-3 text-center">
-                    <p className="font-bold text-sm text-cocoa line-clamp-2">
+                  <div className="p-4 text-center min-w-0">
+                    <p className="font-bold text-sm text-cocoa break-words leading-snug">
                       {item.nameAr}
                     </p>
                     <p className="text-xs text-muted-brown mt-1">

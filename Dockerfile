@@ -26,7 +26,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Bust EasyPanel/Docker layer cache on each release
-ARG CACHEBUST=checkout-v2-20260717
+ARG CACHEBUST=product-text-fix-20260717
 RUN echo "CACHEBUST=$CACHEBUST BUILD_ID=$NEXT_PUBLIC_BUILD_ID"
 
 RUN npm run build

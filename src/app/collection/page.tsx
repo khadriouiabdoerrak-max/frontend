@@ -154,7 +154,7 @@ export default function CollectionPage() {
                 <div className="p-4 flex flex-col gap-2 flex-1">
                   <StarRating rating={product.rating} />
                   <Link href={`/products/${product.slug}`}>
-                    <h3 className="font-bold text-sm text-cocoa leading-snug hover:text-gold transition-colors">
+                    <h3 className="font-bold text-sm text-cocoa leading-snug break-words hover:text-gold transition-colors">
                       {product.nameAr}
                     </h3>
                   </Link>
