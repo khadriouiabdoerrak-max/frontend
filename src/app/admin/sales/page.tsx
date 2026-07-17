@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function SalesRedirectPage() {
-  redirect('/admin?tab=all');
+  redirect('/admin?tab=orders');
 }

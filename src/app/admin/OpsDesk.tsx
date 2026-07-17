@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Tajouki Ops — لوحة · تأكيد · شحن · كلشي
- * Sheet tables + status-aware detail panel (confirm / calls / cancel / ship / track).
+ * Tajouki Ops — نظام إدارة الطلبات
+ * لوحة أرقام + جدول مبيعات بكل الحالات + ورقة تفاصيل حسب المرحلة.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -44,23 +44,24 @@ import {
   timeAgo,
 } from '@/lib/admin';
 
-type Mode = 'board' | 'confirm' | 'ship' | 'all';
+type Mode = 'board' | 'orders' | 'ship';
 
-type StatusFocus =
-  | 'PENDING_CONFIRMATION'
-  | 'NO_ANSWER'
-  | 'CONFIRMED'
-  | 'SHIPPED'
-  | 'DELIVERED'
-  | 'RETURNED'
-  | 'CANCELLED'
-  | null;
+/** Pipeline filters for the orders sheet */
+type PipeFilter =
+  | 'all'
+  | 'new'
+  | 'call1'
+  | 'call2'
+  | 'confirmed'
+  | 'shipped'
+  | 'delivered'
+  | 'returned'
+  | 'cancelled';
 
 const MODES: { id: Mode; label: string }[] = [
   { id: 'board', label: 'لوحة' },
-  { id: 'confirm', label: 'تأكيد' },
-  { id: 'ship', label: 'شحن' },
-  { id: 'all', label: 'كلشي' },
+  { id: 'orders', label: 'الطلبات' },
+  { id: 'ship', label: 'الشحن' },
 ];
 
 const COURIERS = [
@@ -106,11 +107,20 @@ function urgency(o: AdminOrder) {
   return s;
 }
 
-function isConfirm(o: AdminOrder) {
+/** 0 = ما تّصلوش بعد، 1 = مكالمة أولى، 2 = مكالمة ثانية+ */
+function callAttempt(notes?: string | null): 0 | 1 | 2 {
+  const n = (notes || '').trim();
+  if (!n) return 0;
+  if (/مكالمة\s*(2|الثانية|تانية)|call\s*2/i.test(n)) return 2;
+  if (/مكالمة\s*(1|الأولى|الاولى|اولى)|call\s*1/i.test(n)) return 1;
+  return 0;
+}
+
+function isConfirmQueue(o: AdminOrder) {
   return o.status === 'PENDING_CONFIRMATION' || o.status === 'NO_ANSWER';
 }
 
-function isShip(o: AdminOrder) {
+function isShipQueue(o: AdminOrder) {
   return (
     o.status === 'CONFIRMED' ||
     o.status === 'READY_TO_SHIP' ||
@@ -118,21 +128,41 @@ function isShip(o: AdminOrder) {
   );
 }
 
-/** Call attempt from notes: 0 none, 1 first, 2+ second. */
-function callAttempt(notes?: string | null): 0 | 1 | 2 {
-  const n = (notes || '').trim();
-  if (!n) return 0;
-  if (/مكالمة\s*(2|الثانية|تانية)|call\s*2/i.test(n)) return 2;
-  if (/مكالمة\s*(1|الأولى|الاولى|اولى)|call\s*1/i.test(n)) return 1;
-  if (n.includes('ما جاوبش')) return 1;
-  return 0;
+/** Display stage for the sheet (كل حالات الكونفيرماسيون + الشحن) */
+function stageOf(o: AdminOrder): PipeFilter {
+  if (o.status === 'CANCELLED') return 'cancelled';
+  if (o.status === 'RETURNED') return 'returned';
+  if (o.status === 'DELIVERED') return 'delivered';
+  if (o.status === 'SHIPPED') return 'shipped';
+  if (o.status === 'CONFIRMED' || o.status === 'READY_TO_SHIP')
+    return 'confirmed';
+  const a = callAttempt(o.notes);
+  if (a >= 2 || (o.status === 'NO_ANSWER' && a >= 2)) return 'call2';
+  if (a === 1 || o.status === 'NO_ANSWER') return 'call1';
+  return 'new';
 }
 
-function callAttemptLabel(o: AdminOrder): string {
-  const a = callAttempt(o.notes);
-  if (a >= 2) return 'مكالمة 2';
-  if (a === 1 || o.status === 'NO_ANSWER') return 'مكالمة 1';
-  return '—';
+function stageLabel(o: AdminOrder): string {
+  switch (stageOf(o)) {
+    case 'new':
+      return 'جديد — بانتظار الاتصال';
+    case 'call1':
+      return 'مكالمة 1 — ما جاوبش';
+    case 'call2':
+      return 'مكالمة 2 — ما جاوبش';
+    case 'confirmed':
+      return 'مؤكَّد — جاهز للشحن';
+    case 'shipped':
+      return 'فالطريق';
+    case 'delivered':
+      return 'تسلّم';
+    case 'returned':
+      return 'مرتجع';
+    case 'cancelled':
+      return 'ملغي';
+    default:
+      return o.status_label;
+  }
 }
 
 function phoneRisk(orders: AdminOrder[], phone: string) {
@@ -144,45 +174,21 @@ function phoneRisk(orders: AdminOrder[], phone: string) {
 
 function parseMode(tab: string | null): Mode {
   if (tab === 'ship' || tab === 'shipping') return 'ship';
-  if (tab === 'all' || tab === 'monitor' || tab === 'sales') return 'all';
-  if (tab === 'confirm' || tab === 'confirmation') return 'confirm';
+  if (
+    tab === 'orders' ||
+    tab === 'confirm' ||
+    tab === 'all' ||
+    tab === 'sales' ||
+    tab === 'monitor'
+  )
+    return 'orders';
   return 'board';
 }
 
 function modeQuery(m: Mode) {
-  if (m === 'confirm') return 'confirm';
   if (m === 'ship') return 'ship';
-  if (m === 'all') return 'all';
+  if (m === 'orders') return 'orders';
   return 'board';
-}
-
-function focusLabel(f: StatusFocus): string {
-  switch (f) {
-    case 'PENDING_CONFIRMATION':
-      return 'بانتظار التأكيد';
-    case 'NO_ANSWER':
-      return 'ما جاوبش';
-    case 'CONFIRMED':
-      return 'مؤكَّد / جاهز للشحن';
-    case 'SHIPPED':
-      return 'فالطريق';
-    case 'DELIVERED':
-      return 'تسلّم';
-    case 'RETURNED':
-      return 'مرتجع';
-    case 'CANCELLED':
-      return 'ملغي';
-    default:
-      return '';
-  }
-}
-
-function sheetHint(mode: Mode) {
-  if (mode === 'confirm')
-    return 'جدول التأكيد — تفاصيل باش تتصلي وتأكدي أو تسجلي المكالمة.';
-  if (mode === 'ship')
-    return 'جدول الشحن — تفاصيل باش تصدري للشركة وتتبعي الطرد.';
-  return 'كل الطلبات — تفاصيل باش تشوفي الحالة وتصرّفي.';
 }
 
 export default function OpsDesk() {
@@ -198,7 +204,9 @@ export default function OpsDesk() {
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [mode, setMode] = useState<Mode>(initial);
-  const [statusFocus, setStatusFocus] = useState<StatusFocus>(null);
+  const [pipe, setPipe] = useState<PipeFilter>(
+    initial === 'ship' ? 'confirmed' : 'all',
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -212,20 +220,13 @@ export default function OpsDesk() {
   const knownNew = useRef<Set<string>>(new Set());
   const primed = useRef(false);
 
-  const goMode = (m: Mode, clearFocus = true) => {
+  const goMode = (m: Mode) => {
     setMode(m);
     setShowCancel(false);
     setDetailOpen(false);
-    if (clearFocus) setStatusFocus(null);
+    if (m === 'ship') setPipe('confirmed');
+    else if (m === 'orders') setPipe('all');
     router.replace(`/admin?tab=${modeQuery(m)}`, { scroll: false });
-  };
-
-  const openFromBoard = (focus: StatusFocus, desk: Mode) => {
-    setStatusFocus(focus);
-    setMode(desk);
-    setShowCancel(false);
-    setDetailOpen(false);
-    router.replace(`/admin?tab=${modeQuery(desk)}`, { scroll: false });
   };
 
   const openDetail = (id: string) => {
@@ -285,81 +286,69 @@ export default function OpsDesk() {
     return () => window.clearInterval(id);
   }, [token, load]);
 
-  const counts = useMemo(() => {
-    const by = (s: string) => orders.filter((o) => o.status === s).length;
-    return {
-      today: stats?.today ?? 0,
-      total: stats?.total ?? orders.length,
-      pending: by('PENDING_CONFIRMATION'),
-      noAnswer: by('NO_ANSWER'),
-      confirmed: by('CONFIRMED') + by('READY_TO_SHIP'),
-      shipped: by('SHIPPED'),
-      delivered: by('DELIVERED'),
-      returned: by('RETURNED'),
-      cancelled: by('CANCELLED'),
+  const pipeCounts = useMemo(() => {
+    const c: Record<PipeFilter, number> = {
+      all: orders.length,
+      new: 0,
+      call1: 0,
+      call2: 0,
+      confirmed: 0,
+      shipped: 0,
+      delivered: 0,
+      returned: 0,
+      cancelled: 0,
     };
-  }, [orders, stats]);
-
-  const confirmQueue = useMemo(() => {
-    let list = orders.filter(isConfirm);
-    if (statusFocus === 'PENDING_CONFIRMATION') {
-      list = list.filter((o) => o.status === 'PENDING_CONFIRMATION');
-    } else if (statusFocus === 'NO_ANSWER') {
-      list = list.filter((o) => o.status === 'NO_ANSWER');
+    for (const o of orders) {
+      const s = stageOf(o);
+      c[s] += 1;
     }
-    return [...list].sort((a, b) => urgency(b) - urgency(a));
-  }, [orders, statusFocus]);
+    return c;
+  }, [orders]);
 
-  const shipQueue = useMemo(() => {
-    let list = orders.filter(isShip);
-    if (statusFocus === 'CONFIRMED') {
-      list = list.filter(
-        (o) => o.status === 'CONFIRMED' || o.status === 'READY_TO_SHIP',
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const ac = isConfirmQueue(a);
+      const bc = isConfirmQueue(b);
+      if (ac && bc) return urgency(b) - urgency(a);
+      if (ac !== bc) return ac ? -1 : 1;
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-    } else if (statusFocus === 'SHIPPED') {
-      list = list.filter((o) => o.status === 'SHIPPED');
+    });
+  }, [orders]);
+
+  const sheetRows = useMemo(() => {
+    let list = sortedOrders;
+    if (mode === 'ship') {
+      list = list.filter(isShipQueue);
+      if (pipe === 'confirmed') {
+        list = list.filter(
+          (o) => o.status === 'CONFIRMED' || o.status === 'READY_TO_SHIP',
+        );
+      } else if (pipe === 'shipped') {
+        list = list.filter((o) => o.status === 'SHIPPED');
+      }
+    } else if (pipe !== 'all') {
+      list = list.filter((o) => stageOf(o) === pipe);
     }
-    return [...list].sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-  }, [orders, statusFocus]);
-
-  const filteredAll = useMemo(() => {
-    let list = orders;
-    if (
-      statusFocus === 'DELIVERED' ||
-      statusFocus === 'RETURNED' ||
-      statusFocus === 'CANCELLED'
-    ) {
-      list = list.filter((o) => o.status === statusFocus);
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      list = list.filter(
+        (o) =>
+          o.customer_name.toLowerCase().includes(q) ||
+          o.city.toLowerCase().includes(q) ||
+          o.phone.includes(q) ||
+          o.order_number.toLowerCase().includes(q) ||
+          stageLabel(o).includes(q) ||
+          (o.notes || '').toLowerCase().includes(q),
+      );
     }
-    if (!query.trim()) return list;
-    const q = query.trim().toLowerCase();
-    return list.filter(
-      (o) =>
-        o.customer_name.toLowerCase().includes(q) ||
-        o.city.toLowerCase().includes(q) ||
-        o.phone.includes(q) ||
-        o.order_number.toLowerCase().includes(q) ||
-        o.status_label.toLowerCase().includes(q),
-    );
-  }, [orders, query, statusFocus]);
+    return list;
+  }, [sortedOrders, mode, pipe, query]);
 
-  const sheetRows =
-    mode === 'confirm'
-      ? confirmQueue
-      : mode === 'ship'
-        ? shipQueue
-        : filteredAll;
-
-  const hotCount = orders
-    .filter(isConfirm)
-    .filter(
-      (o) => minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER',
-    ).length;
-
-  const shipReady = shipQueue.filter((o) => o.status !== 'SHIPPED').length;
+  const confirmWaiting =
+    pipeCounts.new + pipeCounts.call1 + pipeCounts.call2;
+  const shipReady = pipeCounts.confirmed;
 
   useEffect(() => {
     if (!detailOpen || !activeId) return;
@@ -447,7 +436,7 @@ export default function OpsDesk() {
           <div className="text-center space-y-1">
             <Lock className="w-6 h-6 mx-auto text-[#2a1810]" />
             <h1 className="text-xl font-bold text-[#2a1810]">تاجكِ تشغيل</h1>
-            <p className="text-sm text-[#6a5648]">لوحة · تأكيد · شحن</p>
+            <p className="text-sm text-[#6a5648]">إدارة وتتبّع الطلبات</p>
           </div>
           <input
             type="password"
@@ -474,196 +463,93 @@ export default function OpsDesk() {
 
   const risk = active ? phoneRisk(orders, active.phone) : null;
   const attempt = active ? callAttempt(active.notes) : 0;
+  const activeStage = active ? stageOf(active) : null;
 
-  const boardTiles: {
-    key: string;
+  const orderFilters: { id: PipeFilter; label: string }[] =
+    mode === 'ship'
+      ? [
+          { id: 'confirmed', label: 'جاهز للشحن' },
+          { id: 'shipped', label: 'فالطريق' },
+          { id: 'all', label: 'كل الشحن' },
+        ]
+      : [
+          { id: 'all', label: 'الكل' },
+          { id: 'new', label: 'جديد' },
+          { id: 'call1', label: 'مكالمة 1' },
+          { id: 'call2', label: 'مكالمة 2' },
+          { id: 'confirmed', label: 'مؤكَّد' },
+          { id: 'shipped', label: 'فالطريق' },
+          { id: 'delivered', label: 'تسلّم' },
+          { id: 'returned', label: 'مرتجع' },
+          { id: 'cancelled', label: 'ملغي' },
+        ];
+
+  const boardCards: {
     label: string;
     value: number;
-    focus: StatusFocus;
+    filter: PipeFilter;
     desk: Mode;
-    hint?: string;
   }[] = [
+    { label: 'جديد', value: pipeCounts.new, filter: 'new', desk: 'orders' },
     {
-      key: 'pending',
-      label: 'بانتظار التأكيد',
-      value: counts.pending,
-      focus: 'PENDING_CONFIRMATION',
-      desk: 'confirm',
+      label: 'مكالمة 1',
+      value: pipeCounts.call1,
+      filter: 'call1',
+      desk: 'orders',
     },
     {
-      key: 'no_answer',
-      label: 'ما جاوبش',
-      value: counts.noAnswer,
-      focus: 'NO_ANSWER',
-      desk: 'confirm',
+      label: 'مكالمة 2',
+      value: pipeCounts.call2,
+      filter: 'call2',
+      desk: 'orders',
     },
     {
-      key: 'confirmed',
       label: 'مؤكَّد',
-      value: counts.confirmed,
-      focus: 'CONFIRMED',
+      value: pipeCounts.confirmed,
+      filter: 'confirmed',
       desk: 'ship',
-      hint: 'جاهز للشحن',
     },
     {
-      key: 'shipped',
       label: 'فالطريق',
-      value: counts.shipped,
-      focus: 'SHIPPED',
+      value: pipeCounts.shipped,
+      filter: 'shipped',
       desk: 'ship',
     },
     {
-      key: 'delivered',
       label: 'تسلّم',
-      value: counts.delivered,
-      focus: 'DELIVERED',
-      desk: 'all',
+      value: pipeCounts.delivered,
+      filter: 'delivered',
+      desk: 'orders',
     },
     {
-      key: 'returned',
       label: 'مرتجع',
-      value: counts.returned,
-      focus: 'RETURNED',
-      desk: 'all',
+      value: pipeCounts.returned,
+      filter: 'returned',
+      desk: 'orders',
     },
     {
-      key: 'cancelled',
       label: 'ملغي',
-      value: counts.cancelled,
-      focus: 'CANCELLED',
-      desk: 'all',
+      value: pipeCounts.cancelled,
+      filter: 'cancelled',
+      desk: 'orders',
     },
   ];
-
-  const renderSheet = (rows: AdminOrder[], emptyMsg: string) => (
-    <div className="overflow-x-auto rounded-xl border border-[#c8d7c0] bg-white shadow-sm">
-      <table className="w-full text-sm text-right min-w-[1020px] border-collapse">
-        <thead>
-          <tr className="bg-[#e8f0e3] text-[#2f4a2a] border-b border-[#c8d7c0]">
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0] whitespace-nowrap">
-              وقت
-            </th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">طلب</th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">زبون</th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">هاتف</th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">مدينة</th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0] min-w-[140px]">
-              منتجات
-            </th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">COD</th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">حالة</th>
-            <th className="p-2.5 font-semibold border-l border-[#c8d7c0] whitespace-nowrap">
-              مكالمة
-            </th>
-            <th className="p-2.5 font-semibold whitespace-nowrap">تفاصيل</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={10} className="p-10 text-center text-[#6a5648]">
-                {emptyMsg}
-              </td>
-            </tr>
-          ) : (
-            rows.map((o, i) => {
-              const hot =
-                minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER';
-              return (
-                <tr
-                  key={o.order_number}
-                  className={`border-t border-[#e2ebe0] ${
-                    hot
-                      ? 'bg-amber-50/80'
-                      : i % 2 === 0
-                        ? 'bg-white'
-                        : 'bg-[#f7faf5]'
-                  } hover:bg-[#eef5ea]`}
-                >
-                  <td className="p-2.5 text-xs text-[#6a5648] whitespace-nowrap border-l border-[#e2ebe0]">
-                    {formatAdminDate(o.created_at)}
-                    <div className="text-[11px]">{timeAgo(o.created_at)}</div>
-                  </td>
-                  <td className="p-2.5 font-mono text-xs border-l border-[#e2ebe0]">
-                    {o.order_number}
-                  </td>
-                  <td className="p-2.5 font-medium border-l border-[#e2ebe0]">
-                    {hot ? '● ' : ''}
-                    {o.customer_name}
-                  </td>
-                  <td className="p-2.5 dir-ltr text-left border-l border-[#e2ebe0] whitespace-nowrap">
-                    {o.phone}
-                  </td>
-                  <td className="p-2.5 border-l border-[#e2ebe0]">{o.city}</td>
-                  <td
-                    className="p-2.5 text-xs max-w-[200px] truncate border-l border-[#e2ebe0]"
-                    title={o.products}
-                  >
-                    {o.products}
-                  </td>
-                  <td className="p-2.5 font-bold tabular-nums border-l border-[#e2ebe0]">
-                    {o.total_amount}
-                  </td>
-                  <td className="p-2.5 text-xs border-l border-[#e2ebe0]">
-                    {o.status_label}
-                  </td>
-                  <td className="p-2.5 text-xs border-l border-[#e2ebe0]">
-                    {callAttemptLabel(o)}
-                  </td>
-                  <td className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => openDetail(o.order_number)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a1810] text-white text-xs font-bold"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      تفاصيل
-                    </button>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
 
   return (
     <div className="min-h-[100dvh] bg-[#f5f0ea] text-[#2a1810]">
       <header className="sticky top-0 z-20 border-b border-[#e6d9cc] bg-[#f5f0ea]/95 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
+        <div className="mx-auto max-w-[1400px] px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <h1 className="font-bold text-lg shrink-0">تاجكِ تشغيل</h1>
-            {mode === 'board' ? (
-              <>
-                <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
-                  {counts.today} اليوم
-                </span>
-                <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
-                  {counts.total} الكل
-                </span>
-              </>
-            ) : mode === 'confirm' ? (
-              <>
-                <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
-                  {confirmQueue.length} فالطابور
-                </span>
-                {hotCount > 0 ? (
-                  <span className="text-sm bg-amber-100 border border-amber-300 text-amber-950 rounded-full px-3 py-1 tabular-nums">
-                    {hotCount} مستعجل
-                  </span>
-                ) : null}
-              </>
-            ) : mode === 'ship' ? (
-              <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
-                {shipReady} للشحن
-              </span>
-            ) : (
-              <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
-                {filteredAll.length} طلب
-              </span>
-            )}
+            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+              {stats?.today ?? 0} اليوم
+            </span>
+            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+              {confirmWaiting} تأكيد
+            </span>
+            <span className="text-sm bg-white border border-[#e6d9cc] rounded-full px-3 py-1 tabular-nums">
+              {shipReady} شحن
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -690,7 +576,7 @@ export default function OpsDesk() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-3 pb-3">
+        <div className="mx-auto max-w-[1400px] px-3 pb-3">
           <div className="flex gap-1 p-1 rounded-xl bg-[#e8dfd5]">
             {MODES.map((m) => (
               <button
@@ -704,10 +590,8 @@ export default function OpsDesk() {
                 }`}
               >
                 {m.label}
-                {m.id === 'confirm'
-                  ? ` (${counts.pending + counts.noAnswer})`
-                  : ''}
-                {m.id === 'ship' ? ` (${shipReady})` : ''}
+                {m.id === 'orders' ? ` (${orders.length})` : ''}
+                {m.id === 'ship' ? ` (${shipReady + pipeCounts.shipped})` : ''}
               </button>
             ))}
           </div>
@@ -715,111 +599,99 @@ export default function OpsDesk() {
       </header>
 
       {error ? (
-        <p className="mx-auto max-w-7xl px-3 pt-3 text-sm text-red-800">
+        <p className="mx-auto max-w-[1400px] px-3 pt-3 text-sm text-red-800">
           {error}
         </p>
       ) : null}
 
+      {/* Board */}
       {mode === 'board' && (
-        <div className="mx-auto max-w-7xl px-3 py-6 space-y-6">
+        <div className="mx-auto max-w-[1400px] px-3 py-6 space-y-6">
           <div>
-            <h2 className="text-xl font-bold">خط الطلبات</h2>
+            <h2 className="text-xl font-bold">خط الطلب من الدخول حتى التسليم</h2>
             <p className="text-sm text-[#6a5648] mt-1">
-              اضغطي على أي رقم باش تفتحي المكتب المناسب.
+              اضغطي على أي حالة باش تفتحي جدول الطلبات ديالها.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
               <p className="text-xs text-[#6a5648]">دخلو اليوم</p>
               <p className="text-3xl font-bold tabular-nums mt-1">
-                {counts.today}
+                {stats?.today ?? 0}
               </p>
             </div>
             <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
-              <p className="text-xs text-[#6a5648]">الكل</p>
+              <p className="text-xs text-[#6a5648]">مجموع الطلبات</p>
               <p className="text-3xl font-bold tabular-nums mt-1">
-                {counts.total}
+                {orders.length}
               </p>
+            </div>
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
+              <p className="text-xs text-[#6a5648]">خصّهم تأكيد</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">
+                {confirmWaiting}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
+              <p className="text-xs text-[#6a5648]">خصّهم شحن</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">{shipReady}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {boardTiles.map((t) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+            {boardCards.map((c) => (
               <button
-                key={t.key}
+                key={c.label}
                 type="button"
-                onClick={() => openFromBoard(t.focus, t.desk)}
-                className="text-right rounded-2xl border border-[#e6d9cc] bg-white p-4 hover:border-[#2a1810] transition-colors"
+                onClick={() => {
+                  setPipe(c.filter);
+                  setMode(c.desk);
+                  router.replace(`/admin?tab=${modeQuery(c.desk)}`, {
+                    scroll: false,
+                  });
+                }}
+                className="text-right rounded-xl border border-[#e6d9cc] bg-white p-3 hover:border-[#2a1810]"
               >
-                <p className="text-xs text-[#6a5648]">{t.label}</p>
-                {t.hint ? (
-                  <p className="text-[11px] text-[#8a7464]">{t.hint}</p>
-                ) : null}
-                <p className="text-3xl font-bold tabular-nums mt-2">{t.value}</p>
+                <p className="text-[11px] text-[#6a5648] leading-tight">
+                  {c.label}
+                </p>
+                <p className="text-2xl font-bold tabular-nums mt-1">{c.value}</p>
               </button>
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => goMode('confirm')}
-              className="px-5 py-3 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
-            >
-              فتح مكتب التأكيد
-            </button>
-            <button
-              type="button"
-              onClick={() => goMode('ship')}
-              className="px-5 py-3 rounded-xl border border-[#2a1810] font-bold text-sm"
-            >
-              فتح مكتب الشحن
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => goMode('orders')}
+            className="px-5 py-3 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
+          >
+            فتح جدول الطلبات
+          </button>
         </div>
       )}
 
-      {(mode === 'confirm' || mode === 'ship' || mode === 'all') && (
-        <div className="mx-auto max-w-7xl px-3 py-4 space-y-3">
-          {statusFocus && focusLabel(statusFocus) ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
-                فلتر: {focusLabel(statusFocus)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setStatusFocus(null)}
-                className="text-[#6a5648] underline"
-              >
-                إزالة الفلتر
-              </button>
+      {/* Orders / Ship sheet */}
+      {(mode === 'orders' || mode === 'ship') && (
+        <div className="mx-auto max-w-[1400px] px-3 py-4 space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-lg">
+                {mode === 'ship' ? 'مكتب الشحن والتتبع' : 'جدول الطلبات'}
+              </h2>
+              <p className="text-sm text-[#6a5648]">
+                بحال شيت المبيعات — فلّتري الحالة، ومن بعد{' '}
+                <span className="font-bold text-[#2a1810]">تفاصيل</span> باش
+                تصرّفي.
+              </p>
             </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-[#6a5648]">{sheetHint(mode)}</p>
-            <div className="flex flex-wrap items-center gap-2">
-              {mode === 'all' ? (
-                <>
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="بحث…"
-                    className="min-w-[160px] p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.location.href = `/api/admin/orders/csv?token=${encodeURIComponent(token)}`;
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
-                  >
-                    <Download className="w-4 h-4" />
-                    Excel
-                  </button>
-                </>
-              ) : null}
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="بحث: اسم، هاتف، مدينة، رقم طلب…"
+                className="min-w-[200px] flex-1 p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
+              />
               {mode === 'ship' ? (
                 <button
                   type="button"
@@ -836,25 +708,162 @@ export default function OpsDesk() {
                   <Download className="w-4 h-4" />
                   CSV شركة
                 </button>
-              ) : null}
-              <span className="text-xs text-[#6a5648] tabular-nums">
-                {sheetRows.length} سطر
-              </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = `/api/admin/orders/csv?token=${encodeURIComponent(token)}`;
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  Excel
+                </button>
+              )}
             </div>
           </div>
 
-          {renderSheet(
-            sheetRows,
-            mode === 'confirm'
-              ? 'ما كاين حتى طلب فالطابور.'
-              : mode === 'ship'
-                ? 'ما كاين حتى طلب للشحن.'
-                : 'ما كاين حتى طلب.',
-          )}
+          {/* Status pipeline filters */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+            {orderFilters.map((f) => {
+              const count =
+                mode === 'ship' && f.id === 'all'
+                  ? pipeCounts.confirmed + pipeCounts.shipped
+                  : pipeCounts[f.id];
+              const activeChip = pipe === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setPipe(f.id)}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold border tabular-nums ${
+                    activeChip
+                      ? 'bg-[#2a1810] text-white border-[#2a1810]'
+                      : 'bg-white border-[#e6d9cc] text-[#5c4a3c]'
+                  }`}
+                >
+                  {f.label} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-[#b7c9b0] bg-white shadow-sm">
+            <table className="w-full text-sm text-right min-w-[1100px] border-collapse">
+              <thead>
+                <tr className="bg-[#dfe9d8] text-[#243d22] border-b border-[#b7c9b0]">
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0] whitespace-nowrap">
+                    وقت
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0]">
+                    رقم الطلب
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0]">
+                    الزبونة
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0]">
+                    الهاتف
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0]">
+                    المدينة
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0] min-w-[140px]">
+                    المنتجات
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0]">
+                    COD
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0] min-w-[150px]">
+                    الحالة
+                  </th>
+                  <th className="p-2.5 font-semibold border-l border-[#b7c9b0]">
+                    تتبع
+                  </th>
+                  <th className="p-2.5 font-semibold whitespace-nowrap">تفاصيل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sheetRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={10}
+                      className="p-12 text-center text-[#6a5648]"
+                    >
+                      ما كاين حتى طلب فهاد الفلتر.
+                    </td>
+                  </tr>
+                ) : (
+                  sheetRows.map((o, i) => {
+                    const st = stageOf(o);
+                    const hot = st === 'new' || st === 'call1' || st === 'call2';
+                    return (
+                      <tr
+                        key={o.order_number}
+                        className={`border-t border-[#dde8d8] ${
+                          hot && st !== 'new'
+                            ? 'bg-amber-50/70'
+                            : i % 2 === 0
+                              ? 'bg-white'
+                              : 'bg-[#f4f8f1]'
+                        } hover:bg-[#eaf2e4]`}
+                      >
+                        <td className="p-2.5 text-xs text-[#6a5648] whitespace-nowrap border-l border-[#dde8d8]">
+                          {formatAdminDate(o.created_at)}
+                          <div className="text-[11px]">
+                            {timeAgo(o.created_at)}
+                          </div>
+                        </td>
+                        <td className="p-2.5 font-mono text-xs border-l border-[#dde8d8]">
+                          {o.order_number}
+                        </td>
+                        <td className="p-2.5 font-medium border-l border-[#dde8d8]">
+                          {o.customer_name}
+                        </td>
+                        <td className="p-2.5 dir-ltr text-left border-l border-[#dde8d8] whitespace-nowrap">
+                          {o.phone}
+                        </td>
+                        <td className="p-2.5 border-l border-[#dde8d8]">
+                          {o.city}
+                        </td>
+                        <td
+                          className="p-2.5 text-xs max-w-[180px] truncate border-l border-[#dde8d8]"
+                          title={o.products}
+                        >
+                          {o.products}
+                        </td>
+                        <td className="p-2.5 font-bold tabular-nums border-l border-[#dde8d8]">
+                          {o.total_amount}
+                        </td>
+                        <td className="p-2.5 text-xs font-medium border-l border-[#dde8d8]">
+                          {stageLabel(o)}
+                        </td>
+                        <td className="p-2.5 text-xs font-mono border-l border-[#dde8d8]">
+                          {o.tracking_number || '—'}
+                        </td>
+                        <td className="p-2">
+                          <button
+                            type="button"
+                            onClick={() => openDetail(o.order_number)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a1810] text-white text-xs font-bold"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            تفاصيل
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-[#6a5648] tabular-nums">
+            {sheetRows.length} سطر ظاهر
+          </p>
         </div>
       )}
 
-      {/* Shared detail panel — actions depend on status */}
+      {/* Detail drawer — full lifecycle actions */}
       {detailOpen && active ? (
         <div className="fixed inset-0 z-40 flex justify-end">
           <button
@@ -866,8 +875,8 @@ export default function OpsDesk() {
           <div className="relative z-10 h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl border-s border-[#e6d9cc]">
             <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-[#e6d9cc] bg-white px-4 py-3">
               <div>
-                <h3 className="font-bold">ورقة الطلب</h3>
-                <p className="text-xs text-[#6a5648]">{active.status_label}</p>
+                <h3 className="font-bold">إدارة الطلب</h3>
+                <p className="text-xs text-[#6a5648]">{stageLabel(active)}</p>
               </div>
               <button
                 type="button"
@@ -883,7 +892,7 @@ export default function OpsDesk() {
               {risk?.risky ? (
                 <p className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  هاد الرقم عندو إلغاء/إرجاع متكرر من قبل.
+                  تحذير: إلغاء/إرجاع متكرر على هاد الرقم.
                 </p>
               ) : null}
 
@@ -891,9 +900,7 @@ export default function OpsDesk() {
                 <p className="text-xs text-[#6a5648] font-mono">
                   {active.order_number} · {timeAgo(active.created_at)}
                 </p>
-                <h2 className="text-2xl font-bold mt-1 leading-tight">
-                  {active.customer_name}
-                </h2>
+                <h2 className="text-2xl font-bold mt-1">{active.customer_name}</h2>
                 <p className="text-xl font-semibold mt-2 dir-ltr tracking-wide">
                   {active.phone}
                 </p>
@@ -903,7 +910,7 @@ export default function OpsDesk() {
                 </p>
               </div>
 
-              <div className="text-sm space-y-1.5 leading-relaxed rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
+              <div className="text-sm space-y-1.5 rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
                 <p>
                   <span className="text-[#6a5648]">المدينة: </span>
                   {active.city}
@@ -918,7 +925,7 @@ export default function OpsDesk() {
                 </p>
                 {active.tracking_number ? (
                   <p>
-                    <span className="text-[#6a5648]">تتبع: </span>
+                    <span className="text-[#6a5648]">التتبع: </span>
                     {active.tracking_number}
                   </p>
                 ) : null}
@@ -930,7 +937,6 @@ export default function OpsDesk() {
                 ) : null}
               </div>
 
-              {/* Contact — always useful */}
               <div className="grid grid-cols-2 gap-2">
                 <a
                   href={telHref(active.phone)}
@@ -953,24 +959,26 @@ export default function OpsDesk() {
                 </a>
               </div>
 
-              {/* Confirm desk actions */}
-              {isConfirm(active) && !showCancel ? (
+              {/* Confirmation stage */}
+              {isConfirmQueue(active) && !showCancel ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-[#6a5648]">قرار التأكيد</p>
+                  <p className="text-xs font-bold text-[#6a5648]">
+                    الكونفيرماسيون
+                  </p>
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() =>
                       void patch(
                         active.order_number,
-                        { status: 'CONFIRMED' },
+                        { status: 'CONFIRMED', notes: notes || undefined },
                         true,
                       )
                     }
                     className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-700 text-white font-bold disabled:opacity-40"
                   >
                     <Check className="w-5 h-5" />
-                    تأكيد الطلب
+                    تأكيد — يدوز للشحن
                   </button>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -979,28 +987,24 @@ export default function OpsDesk() {
                       onClick={() =>
                         void patch(active.order_number, {
                           status: 'NO_ANSWER',
-                          notes: notes
-                            ? `${notes} · مكالمة أولى`
-                            : 'مكالمة أولى',
+                          notes: 'مكالمة أولى — ما جاوبش',
                         })
                       }
-                      className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-amber-500 text-amber-950 font-bold text-sm disabled:opacity-40"
+                      className="flex items-center justify-center gap-1 py-3 rounded-xl border-2 border-amber-500 font-bold text-sm disabled:opacity-40"
                     >
                       <PhoneMissed className="w-4 h-4" />
                       مكالمة 1
                     </button>
                     <button
                       type="button"
-                      disabled={busy}
+                      disabled={busy || attempt >= 2}
                       onClick={() =>
                         void patch(active.order_number, {
                           status: 'NO_ANSWER',
-                          notes: notes
-                            ? `${notes} · مكالمة ثانية`
-                            : 'مكالمة ثانية',
+                          notes: 'مكالمة ثانية — ما جاوبش',
                         })
                       }
-                      className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-amber-700 text-amber-950 font-bold text-sm disabled:opacity-40"
+                      className="flex items-center justify-center gap-1 py-3 rounded-xl border-2 border-amber-700 font-bold text-sm disabled:opacity-40"
                     >
                       <PhoneMissed className="w-4 h-4" />
                       مكالمة 2
@@ -1010,15 +1014,15 @@ export default function OpsDesk() {
                     type="button"
                     disabled={busy}
                     onClick={() => setShowCancel(true)}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-red-600 text-red-700 font-bold disabled:opacity-40"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-red-600 text-red-700 font-bold"
                   >
                     <X className="w-5 h-5" />
-                    إلغاء
+                    إلغاء الطلب
                   </button>
                 </div>
               ) : null}
 
-              {isConfirm(active) && showCancel ? (
+              {isConfirmQueue(active) && showCancel ? (
                 <div className="space-y-3">
                   <p className="font-bold">سبب الإلغاء</p>
                   <div className="flex flex-wrap gap-2">
@@ -1054,11 +1058,13 @@ export default function OpsDesk() {
                 </div>
               ) : null}
 
-              {/* Ship actions */}
+              {/* Shipping */}
               {(active.status === 'CONFIRMED' ||
                 active.status === 'READY_TO_SHIP') && (
                 <div className="space-y-3">
-                  <p className="text-xs font-bold text-[#6a5648]">الشحن</p>
+                  <p className="text-xs font-bold text-[#6a5648]">
+                    تهيئة الشحن
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {COURIERS.map((c) => (
                       <button
@@ -1081,38 +1087,36 @@ export default function OpsDesk() {
                   <input
                     value={tracking}
                     onChange={(e) => setTracking(e.target.value)}
-                    placeholder="رقم التتبع"
+                    placeholder="رقم التتبع ديال الشركة"
                     className="w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
                   />
-                  <div className="grid gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={async () => {
-                        await copyText(buildCourierCopyLine(active));
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 1200);
-                      }}
-                      className="flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-[#2a1810] font-bold"
-                    >
-                      <Copy className="w-4 h-4" />
-                      {copied ? 'تم النسخ' : 'نسخ للشركة'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void doShip(active.order_number)}
-                      className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold"
-                    >
-                      <Truck className="w-4 h-4" />
-                      تم الإرسال (فالطريق)
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={async () => {
+                      await copyText(buildCourierCopyLine(active));
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1200);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-[#2a1810] font-bold"
+                  >
+                    <Copy className="w-4 h-4" />
+                    {copied ? 'تم النسخ' : 'نسخ سطر للشركة'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void doShip(active.order_number)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold"
+                  >
+                    <Truck className="w-4 h-4" />
+                    خرج للطرد — فالطريق
+                  </button>
                 </div>
               )}
 
               {active.status === 'SHIPPED' && (
-                <div className="grid gap-2">
+                <div className="space-y-2">
                   <p className="text-xs font-bold text-[#6a5648]">التتبع</p>
                   <button
                     type="button"
@@ -1124,7 +1128,7 @@ export default function OpsDesk() {
                         true,
                       )
                     }
-                    className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-700 text-white font-bold"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-700 text-white font-bold"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     تم التسليم
@@ -1139,7 +1143,7 @@ export default function OpsDesk() {
                         true,
                       )
                     }
-                    className="flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-red-600 text-red-700 font-bold"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-red-600 text-red-700 font-bold"
                   >
                     <RotateCcw className="w-4 h-4" />
                     مرتجع
@@ -1147,22 +1151,22 @@ export default function OpsDesk() {
                 </div>
               )}
 
-              {(active.status === 'DELIVERED' ||
-                active.status === 'RETURNED' ||
-                active.status === 'CANCELLED') && (
+              {(activeStage === 'delivered' ||
+                activeStage === 'returned' ||
+                activeStage === 'cancelled') && (
                 <p className="text-sm text-[#6a5648] bg-[#faf6f1] border border-[#e6d9cc] rounded-xl px-3 py-3">
-                  هاد الطلب مسدود فالحالة:{' '}
-                  <span className="font-bold">{active.status_label}</span>
+                  الطلب سالا فهاد المرحلة:{' '}
+                  <span className="font-bold">{stageLabel(active)}</span>
                 </p>
               )}
 
               <div>
-                <label className="text-xs text-[#6a5648]">ملاحظة</label>
+                <label className="text-xs text-[#6a5648]">ملاحظة داخلية</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
-                  placeholder="علامة قريبة، رقم ثاني، ملاحظة المكالمة…"
+                  placeholder="ملاحظة المكالمة، علامة، رقم ثاني…"
                   className="mt-1 w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1] text-sm"
                 />
                 <button
