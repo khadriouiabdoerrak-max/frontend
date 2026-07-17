@@ -122,7 +122,17 @@ export async function fetchAdminOrders(token: string, status?: string) {
     headers: { 'X-Admin-Token': token },
     cache: 'no-store',
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data: { detail?: string; total?: number; orders?: AdminOrder[]; stats?: AdminStats } = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(
+      res.ok
+        ? 'رد غير صالح من السيرفر'
+        : `خطأ السيرفر (${res.status}) — عاودي Déployer للـ backend`,
+    );
+  }
   if (!res.ok) throw new Error(data?.detail || 'فشل التحميل');
   return data as {
     total: number;
