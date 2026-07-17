@@ -28,7 +28,8 @@ export function StickyOrderBar() {
   const hidden =
     !mounted ||
     pathname?.startsWith('/thank-you') ||
-    pathname?.startsWith('/checkout');
+    pathname?.startsWith('/checkout') ||
+    pathname?.startsWith('/admin');
 
   if (hidden) return null;
 
