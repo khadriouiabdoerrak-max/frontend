@@ -52,13 +52,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # EasyPanel often skips :latest pulls if deploy runs before the image exists.
-      # Deploy ONLY after the new image is pushed.
-      - name: Trigger EasyPanel deploy
+      # EasyPanel VPS is not reachable from GitHub-hosted runners (curl exit 28).
+      # Deploy is triggered from local deploy.ps1 after CI succeeds.
+      - name: Remind EasyPanel deploy
         run: |
-          curl -fsS -X POST \
-            -H "Content-Type: application/json" \
-            -d '{"ref":"refs/heads/main"}' \
-            "http://187.124.46.250:3000/api/deploy/2c96c24d31693f02a63dac28e2b47ef00631a8115cfe9758"
-          echo ""
-          echo "EasyPanel deploy triggered after image push."
+          echo "Image pushed to ghcr.io/khadriouiabdoerrak-max/frontend:latest"
+          echo "Run frontend/deploy.ps1 locally (or EasyPanel Force Rebuild) to go live."
