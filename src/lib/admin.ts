@@ -71,15 +71,50 @@ export const CANCEL_REASONS = [
   'أخرى',
 ] as const;
 
+export function orderDateParts(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return { year: 0, month: 0, day: 0, time: '' };
+  }
+  return {
+    year: d.getFullYear(),
+    month: d.getMonth() + 1,
+    day: d.getDate(),
+    time: d.toLocaleTimeString('fr-MA', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+  };
+}
+
+/** Full chronology: year · day/month · time */
 export function formatAdminDate(iso: string) {
   try {
-    return new Date(iso).toLocaleString('ar-MA', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    });
+    const p = orderDateParts(iso);
+    if (!p.year) return iso;
+    const mm = String(p.month).padStart(2, '0');
+    const dd = String(p.day).padStart(2, '0');
+    return `${p.year}-${mm}-${dd} · ${p.time}`;
   } catch {
     return iso;
   }
+}
+
+export async function purgeAllAdminOrders(token: string) {
+  const qs = new URLSearchParams({ confirm: 'DELETE_ALL_ORDERS' });
+  const res = await fetch(`/api/admin/orders/purge?${qs}`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Token': token },
+    cache: 'no-store',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل المسح');
+  return data as {
+    ok: boolean;
+    deleted_orders: number;
+    deleted_items: number;
+    message?: string;
+  };
 }
 
 /** Relative time in Darija-friendly Arabic, e.g. "قبل 12 د" */

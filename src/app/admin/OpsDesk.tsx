@@ -43,7 +43,9 @@ import {
   fetchAdminOrders,
   formatAdminDate,
   hasRealTracking,
+  orderDateParts,
   patchAdminOrder,
+  purgeAllAdminOrders,
   shipAdminOrder,
   syncOzonExpress,
   telHref,
@@ -259,6 +261,9 @@ export default function OpsDesk() {
   const [ozoneReady, setOzoneReady] = useState(false);
   const [shipConfirm, setShipConfirm] = useState(false);
   const [query, setQuery] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterDay, setFilterDay] = useState('');
 
   const knownNew = useRef<Set<string>>(new Set());
   const primed = useRef(false);
@@ -395,6 +400,31 @@ export default function OpsDesk() {
     });
   }, [orders]);
 
+  const dateOptions = useMemo(() => {
+    const years = new Set<number>();
+    const months = new Set<number>();
+    const days = new Set<number>();
+    for (const o of orders) {
+      const p = orderDateParts(o.created_at);
+      if (!p.year) continue;
+      years.add(p.year);
+      if (!filterYear || p.year === Number(filterYear)) {
+        months.add(p.month);
+        if (
+          (!filterYear || p.year === Number(filterYear)) &&
+          (!filterMonth || p.month === Number(filterMonth))
+        ) {
+          days.add(p.day);
+        }
+      }
+    }
+    return {
+      years: [...years].sort((a, b) => b - a),
+      months: [...months].sort((a, b) => a - b),
+      days: [...days].sort((a, b) => a - b),
+    };
+  }, [orders, filterYear, filterMonth]);
+
   const sheetRows = useMemo(() => {
     let list = sortedOrders;
     if (mode === 'ship') {
@@ -413,6 +443,15 @@ export default function OpsDesk() {
     } else if (pipe !== 'all') {
       list = list.filter((o) => stageOf(o) === pipe);
     }
+    if (filterYear || filterMonth || filterDay) {
+      list = list.filter((o) => {
+        const p = orderDateParts(o.created_at);
+        if (filterYear && p.year !== Number(filterYear)) return false;
+        if (filterMonth && p.month !== Number(filterMonth)) return false;
+        if (filterDay && p.day !== Number(filterDay)) return false;
+        return true;
+      });
+    }
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter(
@@ -426,7 +465,15 @@ export default function OpsDesk() {
       );
     }
     return list;
-  }, [sortedOrders, mode, pipe, query]);
+  }, [
+    sortedOrders,
+    mode,
+    pipe,
+    query,
+    filterYear,
+    filterMonth,
+    filterDay,
+  ]);
 
   const confirmWaiting =
     pipeCounts.en_attente +
@@ -836,13 +883,113 @@ export default function OpsDesk() {
                 <span className="font-bold text-[#2a1810]">تفاصيل</span> للتصرف.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
+              <select
+                value={filterYear}
+                onChange={(e) => {
+                  setFilterYear(e.target.value);
+                  setFilterMonth('');
+                  setFilterDay('');
+                }}
+                className="p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
+                aria-label="السنة"
+              >
+                <option value="">سنة</option>
+                {dateOptions.years.map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterMonth}
+                onChange={(e) => {
+                  setFilterMonth(e.target.value);
+                  setFilterDay('');
+                }}
+                className="p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
+                aria-label="الشهر"
+              >
+                <option value="">شهر</option>
+                {dateOptions.months.map((m) => (
+                  <option key={m} value={String(m)}>
+                    {String(m).padStart(2, '0')}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterDay}
+                onChange={(e) => setFilterDay(e.target.value)}
+                className="p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
+                aria-label="اليوم"
+              >
+                <option value="">يوم</option>
+                {dateOptions.days.map((d) => (
+                  <option key={d} value={String(d)}>
+                    {String(d).padStart(2, '0')}
+                  </option>
+                ))}
+              </select>
+              {(filterYear || filterMonth || filterDay) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterYear('');
+                    setFilterMonth('');
+                    setFilterDay('');
+                  }}
+                  className="px-2.5 py-2.5 rounded-xl border border-[#e6d9cc] bg-white text-xs font-bold"
+                >
+                  مسح التاريخ
+                </button>
+              )}
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="بحث…"
                 className="min-w-[180px] flex-1 p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
               />
+              {mode === 'orders' && (
+                <button
+                  type="button"
+                  disabled={busy || !orders.length}
+                  onClick={() => {
+                    if (!token) return;
+                    const ok = window.confirm(
+                      `غادي تمسح ${orders.length} طلب كاملين من قاعدة البيانات. متأكد؟`,
+                    );
+                    if (!ok) return;
+                    const typed = window.prompt(
+                      'كتب DELETE_ALL_ORDERS باش يتأكد المسح:',
+                    );
+                    if (typed !== 'DELETE_ALL_ORDERS') {
+                      setError('تم الإلغاء — النص غير مطابق');
+                      return;
+                    }
+                    void (async () => {
+                      setBusy(true);
+                      setError('');
+                      try {
+                        const res = await purgeAllAdminOrders(token);
+                        setOrders([]);
+                        await load(token, true);
+                        window.alert(
+                          `تم المسح: ${res.deleted_orders} طلب`,
+                        );
+                      } catch (err) {
+                        setError(
+                          err instanceof Error ? err.message : 'فشل المسح',
+                        );
+                      } finally {
+                        setBusy(false);
+                      }
+                    })();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-red-300 bg-red-50 text-red-800 text-sm font-bold disabled:opacity-50"
+                >
+                  مسح الكل
+                </button>
+              )}
               {mode === 'ship' ? (
                 <>
                   <button
@@ -996,7 +1143,21 @@ export default function OpsDesk() {
                         } hover:bg-[#eaf2e4]`}
                       >
                         <td className="p-2.5 text-xs text-[#6a5648] whitespace-nowrap border-l border-[#dde8d8]">
-                          {formatAdminDate(o.created_at)}
+                          {(() => {
+                            const p = orderDateParts(o.created_at);
+                            if (!p.year) return formatAdminDate(o.created_at);
+                            return (
+                              <>
+                                <div className="font-bold text-[#2a1810] tabular-nums">
+                                  {p.year}
+                                </div>
+                                <div className="tabular-nums">
+                                  {String(p.day).padStart(2, '0')}/
+                                  {String(p.month).padStart(2, '0')} · {p.time}
+                                </div>
+                              </>
+                            );
+                          })()}
                           <div className="text-[11px]">
                             {timeAgo(o.created_at)}
                           </div>
