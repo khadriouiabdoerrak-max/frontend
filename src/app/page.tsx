@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 import { AddToCartButton } from '@/components/cart/AddToCartButton';
 import { LazySection } from '@/components/home/LazySection';
 import { StarRating } from '@/components/home/StarRating';
-import { StickyOrderBar } from '@/components/home/StickyOrderBar';
 import { products, bundleProduct } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
 
@@ -19,6 +18,7 @@ const bundleCartItem = {
   nameAr: bundleProduct.nameAr,
   price: bundleProduct.price,
   compareAtPrice: bundleProduct.compareAtPrice,
+  image: bundleProduct.image,
   isBundle: true as const,
 };
 
@@ -85,7 +85,7 @@ const trustChips = [
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen pb-16 md:pb-0">
+    <div className="flex flex-col min-h-screen">
       {/* ─── HERO ─── */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#EFE5D6] via-[#F7F0E7] to-background">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(212,181,106,0.18),_transparent_55%)]" />
@@ -410,6 +410,7 @@ export default function Home() {
                         slug: product.slug,
                         nameAr: product.nameAr,
                         price: product.price,
+                        image: productImages[product.slug] ?? product.image,
                         isBundle: false,
                       }}
                       className="w-full bg-cocoa text-ivory py-2 text-xs font-bold rounded-btn"
@@ -482,7 +483,6 @@ export default function Home() {
       </LazySection>
 
       <HomeFAQ />
-      <StickyOrderBar />
     </div>
   );
 }

@@ -11,6 +11,7 @@ const bundleCartItem = {
   nameAr: bundleProduct.nameAr,
   price: bundleProduct.price,
   compareAtPrice: bundleProduct.compareAtPrice,
+  image: bundleProduct.image,
   isBundle: true as const,
 };
 
@@ -166,6 +167,7 @@ export default function CollectionPage() {
                       slug: product.slug,
                       nameAr: product.nameAr,
                       price: product.price,
+                      image: getListImage(product),
                       isBundle: false,
                     }}
                     className="w-full bg-cocoa text-ivory py-2.5 text-xs font-bold rounded-btn mt-auto"

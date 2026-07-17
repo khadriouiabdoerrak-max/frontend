@@ -6,6 +6,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { WhatsAppButton } from '@/components/layout/WhatsAppButton';
+import { StickyOrderBar } from '@/components/home/StickyOrderBar';
 import { TrackingScripts } from '@/components/tracking/TrackingScripts';
 import { OrganizationJsonLd } from '@/components/seo/JsonLd';
 export const metadata: Metadata = {
@@ -59,8 +60,9 @@ export default function RootLayout({
           <TrackingScripts />
           <AnnouncementBar />
           <Navbar />
-          <main className="flex-grow">{children}</main>
+          <main className="flex-grow pb-20">{children}</main>
           <Footer />
+          <StickyOrderBar />
           <WhatsAppButton />
         </CartProvider>
       </body>

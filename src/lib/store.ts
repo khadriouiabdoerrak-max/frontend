@@ -18,7 +18,7 @@ export interface CartItem extends CartProduct {
 interface CartStore {
   items: CartItem[];
   isOpen: boolean;
-  addItem: (product: CartProduct) => void;
+  addItem: (product: CartProduct, options?: { open?: boolean }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -36,7 +36,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
       isOpen: false,
 
-      addItem: (product) => {
+      addItem: (product, options) => {
+        const shouldOpen = options?.open !== false;
         set((state) => {
           const existing = state.items.find((item) => item.id === product.id);
           if (existing) {
@@ -46,12 +47,12 @@ export const useCartStore = create<CartStore>()(
                   ? { ...item, quantity: item.quantity + 1 }
                   : item,
               ),
-              isOpen: true,
+              isOpen: shouldOpen ? true : state.isOpen,
             };
           }
           return {
             items: [...state.items, { ...product, quantity: 1 }],
-            isOpen: true,
+            isOpen: shouldOpen ? true : state.isOpen,
           };
         });
         void import('./tracking').then(({ trackAddToCart }) =>

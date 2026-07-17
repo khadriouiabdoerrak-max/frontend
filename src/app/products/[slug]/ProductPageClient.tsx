@@ -187,7 +187,7 @@ function BundlePage({
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="pb-28 min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="px-4 py-8 sm:py-12 bg-gradient-to-b from-[#EFE5D6] to-background">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
@@ -669,28 +669,6 @@ function BundlePage({
         </div>
       </section>
 
-      {/* Sticky CTA mobile + tablet */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-champagne/40 bg-ivory/95 backdrop-blur px-3 py-2.5 shadow-[0_-4px_20px_rgba(58,36,24,0.12)] lg:hidden">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
-          <div className="min-w-0 flex-1 text-right">
-            <p className="text-[11px] text-muted-brown truncate">الباك الكامل</p>
-            <p className="font-bold text-cocoa text-sm">
-              {formatPrice(product.price)}
-              <span className="text-xs text-muted-brown line-through mr-1.5">
-                {formatPrice(product.compareAtPrice!)}
-              </span>
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onAddToCart}
-            disabled={isAdding}
-            className="shrink-0 bg-cocoa text-ivory px-5 py-3 text-sm font-bold rounded-btn disabled:opacity-70"
-          >
-            {isAdding ? 'تمت ✓' : 'اطلبي دابا'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -732,7 +710,7 @@ function SingleProductPage({
   ];
 
   return (
-    <div className="pb-28 min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <section className="px-3 sm:px-4 py-6 sm:py-10 bg-gradient-to-b from-[#EFE5D6] to-background">
         <div className="container mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-10 items-start">
           <div className="w-full lg:sticky lg:top-20">
@@ -962,6 +940,7 @@ function SingleProductPage({
                     nameAr: bundleProduct.nameAr,
                     price: bundleProduct.price,
                     compareAtPrice: bundleProduct.compareAtPrice,
+                    image: bundleProduct.image,
                     isBundle: true,
                   })
                 }
@@ -1051,27 +1030,6 @@ function SingleProductPage({
           </div>
         </section>
       </LazySection>
-
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-champagne/40 bg-ivory/95 backdrop-blur px-3 py-2.5 shadow-[0_-4px_20px_rgba(58,36,24,0.12)] lg:hidden">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
-          <div className="min-w-0 flex-1 text-right">
-            <p className="text-[11px] text-muted-brown truncate line-clamp-1">
-              {product.nameAr}
-            </p>
-            <p className="font-bold text-cocoa text-sm">
-              {formatPrice(product.price)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onAddToCart}
-            disabled={isAdding}
-            className="shrink-0 bg-cocoa text-ivory px-5 py-3 text-sm font-bold rounded-btn disabled:opacity-70"
-          >
-            {isAdding ? 'تمت ✓' : 'أضيفي للسلة'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1096,6 +1054,7 @@ export function ProductPageClient({ slug }: { slug: string }) {
       nameAr: product.nameAr,
       price: product.price,
       compareAtPrice: product.compareAtPrice,
+      image: product.image ?? getListImage(product),
       isBundle: product.isBundle,
     });
     setIsAdding(true);

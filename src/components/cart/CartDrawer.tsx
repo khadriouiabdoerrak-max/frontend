@@ -118,6 +118,7 @@ export function CartDrawer() {
       nameAr: bundleProduct.nameAr,
       price: bundleProduct.price,
       compareAtPrice: bundleProduct.compareAtPrice,
+      image: bundleProduct.image,
       isBundle: true,
     });
   };
