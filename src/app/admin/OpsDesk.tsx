@@ -2,7 +2,7 @@
 
 /**
  * Tajouki Ops — لوحة · تأكيد · شحن · كلشي
- * Board for counts. Confirm desk for calls. Ship desk for courier + tracking.
+ * Sheet tables + status-aware detail panel (confirm / calls / cancel / ship / track).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -46,7 +46,6 @@ import {
 
 type Mode = 'board' | 'confirm' | 'ship' | 'all';
 
-/** Soft filter from board tiles (cleared when switching tabs manually). */
 type StatusFocus =
   | 'PENDING_CONFIRMATION'
   | 'NO_ANSWER'
@@ -119,6 +118,23 @@ function isShip(o: AdminOrder) {
   );
 }
 
+/** Call attempt from notes: 0 none, 1 first, 2+ second. */
+function callAttempt(notes?: string | null): 0 | 1 | 2 {
+  const n = (notes || '').trim();
+  if (!n) return 0;
+  if (/مكالمة\s*(2|الثانية|تانية)|call\s*2/i.test(n)) return 2;
+  if (/مكالمة\s*(1|الأولى|الاولى|اولى)|call\s*1/i.test(n)) return 1;
+  if (n.includes('ما جاوبش')) return 1;
+  return 0;
+}
+
+function callAttemptLabel(o: AdminOrder): string {
+  const a = callAttempt(o.notes);
+  if (a >= 2) return 'مكالمة 2';
+  if (a === 1 || o.status === 'NO_ANSWER') return 'مكالمة 1';
+  return '—';
+}
+
 function phoneRisk(orders: AdminOrder[], phone: string) {
   const same = orders.filter((o) => o.phone === phone);
   const cancelled = same.filter((o) => o.status === 'CANCELLED').length;
@@ -159,6 +175,14 @@ function focusLabel(f: StatusFocus): string {
     default:
       return '';
   }
+}
+
+function sheetHint(mode: Mode) {
+  if (mode === 'confirm')
+    return 'جدول التأكيد — تفاصيل باش تتصلي وتأكدي أو تسجلي المكالمة.';
+  if (mode === 'ship')
+    return 'جدول الشحن — تفاصيل باش تصدري للشركة وتتبعي الطرد.';
+  return 'كل الطلبات — تفاصيل باش تشوفي الحالة وتصرّفي.';
 }
 
 export default function OpsDesk() {
@@ -204,13 +228,13 @@ export default function OpsDesk() {
     router.replace(`/admin?tab=${modeQuery(desk)}`, { scroll: false });
   };
 
-  const openConfirmDetail = (id: string) => {
+  const openDetail = (id: string) => {
     setActiveId(id);
     setDetailOpen(true);
     setShowCancel(false);
   };
 
-  const closeConfirmDetail = () => {
+  const closeDetail = () => {
     setDetailOpen(false);
     setShowCancel(false);
   };
@@ -301,34 +325,49 @@ export default function OpsDesk() {
     );
   }, [orders, statusFocus]);
 
-  const queue = mode === 'ship' ? shipQueue : confirmQueue;
+  const filteredAll = useMemo(() => {
+    let list = orders;
+    if (
+      statusFocus === 'DELIVERED' ||
+      statusFocus === 'RETURNED' ||
+      statusFocus === 'CANCELLED'
+    ) {
+      list = list.filter((o) => o.status === statusFocus);
+    }
+    if (!query.trim()) return list;
+    const q = query.trim().toLowerCase();
+    return list.filter(
+      (o) =>
+        o.customer_name.toLowerCase().includes(q) ||
+        o.city.toLowerCase().includes(q) ||
+        o.phone.includes(q) ||
+        o.order_number.toLowerCase().includes(q) ||
+        o.status_label.toLowerCase().includes(q),
+    );
+  }, [orders, query, statusFocus]);
+
+  const sheetRows =
+    mode === 'confirm'
+      ? confirmQueue
+      : mode === 'ship'
+        ? shipQueue
+        : filteredAll;
+
   const hotCount = orders
     .filter(isConfirm)
     .filter(
       (o) => minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER',
     ).length;
 
+  const shipReady = shipQueue.filter((o) => o.status !== 'SHIPPED').length;
+
   useEffect(() => {
-    if (mode === 'all' || mode === 'board') return;
-    if (mode === 'confirm') {
-      if (
-        detailOpen &&
-        activeId &&
-        !confirmQueue.some((o) => o.order_number === activeId)
-      ) {
-        setDetailOpen(false);
-        setActiveId(null);
-      }
-      return;
-    }
-    if (!queue.length) {
+    if (!detailOpen || !activeId) return;
+    if (!orders.some((o) => o.order_number === activeId)) {
+      setDetailOpen(false);
       setActiveId(null);
-      return;
     }
-    if (!activeId || !queue.some((o) => o.order_number === activeId)) {
-      setActiveId(queue[0].order_number);
-    }
-  }, [queue, activeId, mode, detailOpen, confirmQueue]);
+  }, [orders, activeId, detailOpen]);
 
   const active = useMemo(
     () => orders.find((o) => o.order_number === activeId) ?? null,
@@ -342,20 +381,10 @@ export default function OpsDesk() {
     setCopied(false);
   }, [active?.order_number]);
 
-  const advance = (doneId: string, list: AdminOrder[]) => {
-    const rest = list.filter((o) => o.order_number !== doneId);
-    if (!rest.length) {
-      setActiveId(null);
-      return;
-    }
-    const idx = list.findIndex((o) => o.order_number === doneId);
-    setActiveId(rest[Math.min(Math.max(idx, 0), rest.length - 1)].order_number);
-  };
-
   const patch = async (
     id: string,
     body: Record<string, unknown>,
-    nextConfirm = false,
+    closeAfter = false,
   ) => {
     if (!token) return;
     setBusy(true);
@@ -365,10 +394,7 @@ export default function OpsDesk() {
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
-      if (nextConfirm) {
-        if (detailOpen) closeConfirmDetail();
-        else advance(id, confirmQueue);
-      }
+      if (closeAfter) closeDetail();
       void load(token, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ');
@@ -391,10 +417,7 @@ export default function OpsDesk() {
       setOrders((prev) =>
         prev.map((o) => (o.order_number === id ? { ...o, ...updated } : o)),
       );
-      advance(
-        id,
-        shipQueue.filter((o) => o.status !== 'SHIPPED'),
-      );
+      closeDetail();
       void load(token, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ');
@@ -402,27 +425,6 @@ export default function OpsDesk() {
       setBusy(false);
     }
   };
-
-  const filteredAll = useMemo(() => {
-    let list = orders;
-    if (
-      statusFocus === 'DELIVERED' ||
-      statusFocus === 'RETURNED' ||
-      statusFocus === 'CANCELLED'
-    ) {
-      list = list.filter((o) => o.status === statusFocus);
-    }
-    if (!query.trim()) return list;
-    const q = query.trim().toLowerCase();
-    return list.filter(
-      (o) =>
-        o.customer_name.toLowerCase().includes(q) ||
-        o.city.toLowerCase().includes(q) ||
-        o.phone.includes(q) ||
-        o.order_number.toLowerCase().includes(q) ||
-        o.status_label.toLowerCase().includes(q),
-    );
-  }, [orders, query, statusFocus]);
 
   if (booting) {
     return (
@@ -471,7 +473,7 @@ export default function OpsDesk() {
   }
 
   const risk = active ? phoneRisk(orders, active.phone) : null;
-  const shipReady = shipQueue.filter((o) => o.status !== 'SHIPPED').length;
+  const attempt = active ? callAttempt(active.notes) : 0;
 
   const boardTiles: {
     key: string;
@@ -533,10 +535,104 @@ export default function OpsDesk() {
     },
   ];
 
+  const renderSheet = (rows: AdminOrder[], emptyMsg: string) => (
+    <div className="overflow-x-auto rounded-xl border border-[#c8d7c0] bg-white shadow-sm">
+      <table className="w-full text-sm text-right min-w-[1020px] border-collapse">
+        <thead>
+          <tr className="bg-[#e8f0e3] text-[#2f4a2a] border-b border-[#c8d7c0]">
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0] whitespace-nowrap">
+              وقت
+            </th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">طلب</th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">زبون</th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">هاتف</th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">مدينة</th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0] min-w-[140px]">
+              منتجات
+            </th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">COD</th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">حالة</th>
+            <th className="p-2.5 font-semibold border-l border-[#c8d7c0] whitespace-nowrap">
+              مكالمة
+            </th>
+            <th className="p-2.5 font-semibold whitespace-nowrap">تفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={10} className="p-10 text-center text-[#6a5648]">
+                {emptyMsg}
+              </td>
+            </tr>
+          ) : (
+            rows.map((o, i) => {
+              const hot =
+                minsWaiting(o.created_at) >= 120 || o.status === 'NO_ANSWER';
+              return (
+                <tr
+                  key={o.order_number}
+                  className={`border-t border-[#e2ebe0] ${
+                    hot
+                      ? 'bg-amber-50/80'
+                      : i % 2 === 0
+                        ? 'bg-white'
+                        : 'bg-[#f7faf5]'
+                  } hover:bg-[#eef5ea]`}
+                >
+                  <td className="p-2.5 text-xs text-[#6a5648] whitespace-nowrap border-l border-[#e2ebe0]">
+                    {formatAdminDate(o.created_at)}
+                    <div className="text-[11px]">{timeAgo(o.created_at)}</div>
+                  </td>
+                  <td className="p-2.5 font-mono text-xs border-l border-[#e2ebe0]">
+                    {o.order_number}
+                  </td>
+                  <td className="p-2.5 font-medium border-l border-[#e2ebe0]">
+                    {hot ? '● ' : ''}
+                    {o.customer_name}
+                  </td>
+                  <td className="p-2.5 dir-ltr text-left border-l border-[#e2ebe0] whitespace-nowrap">
+                    {o.phone}
+                  </td>
+                  <td className="p-2.5 border-l border-[#e2ebe0]">{o.city}</td>
+                  <td
+                    className="p-2.5 text-xs max-w-[200px] truncate border-l border-[#e2ebe0]"
+                    title={o.products}
+                  >
+                    {o.products}
+                  </td>
+                  <td className="p-2.5 font-bold tabular-nums border-l border-[#e2ebe0]">
+                    {o.total_amount}
+                  </td>
+                  <td className="p-2.5 text-xs border-l border-[#e2ebe0]">
+                    {o.status_label}
+                  </td>
+                  <td className="p-2.5 text-xs border-l border-[#e2ebe0]">
+                    {callAttemptLabel(o)}
+                  </td>
+                  <td className="p-2">
+                    <button
+                      type="button"
+                      onClick={() => openDetail(o.order_number)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a1810] text-white text-xs font-bold"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      تفاصيل
+                    </button>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="min-h-[100dvh] bg-[#f5f0ea] text-[#2a1810]">
       <header className="sticky top-0 z-20 border-b border-[#e6d9cc] bg-[#f5f0ea]/95 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
+        <div className="mx-auto max-w-7xl px-3 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <h1 className="font-bold text-lg shrink-0">تاجكِ تشغيل</h1>
             {mode === 'board' ? (
@@ -594,7 +690,7 @@ export default function OpsDesk() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl px-3 pb-3">
+        <div className="mx-auto max-w-7xl px-3 pb-3">
           <div className="flex gap-1 p-1 rounded-xl bg-[#e8dfd5]">
             {MODES.map((m) => (
               <button
@@ -608,7 +704,9 @@ export default function OpsDesk() {
                 }`}
               >
                 {m.label}
-                {m.id === 'confirm' ? ` (${counts.pending + counts.noAnswer})` : ''}
+                {m.id === 'confirm'
+                  ? ` (${counts.pending + counts.noAnswer})`
+                  : ''}
                 {m.id === 'ship' ? ` (${shipReady})` : ''}
               </button>
             ))}
@@ -617,14 +715,13 @@ export default function OpsDesk() {
       </header>
 
       {error ? (
-        <p className="mx-auto max-w-5xl px-3 pt-3 text-sm text-red-800">
+        <p className="mx-auto max-w-7xl px-3 pt-3 text-sm text-red-800">
           {error}
         </p>
       ) : null}
 
-      {/* Board */}
       {mode === 'board' && (
-        <div className="mx-auto max-w-5xl px-3 py-6 space-y-6">
+        <div className="mx-auto max-w-7xl px-3 py-6 space-y-6">
           <div>
             <h2 className="text-xl font-bold">خط الطلبات</h2>
             <p className="text-sm text-[#6a5648] mt-1">
@@ -633,7 +730,7 @@ export default function OpsDesk() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4 sm:col-span-1">
+            <div className="rounded-2xl border border-[#e6d9cc] bg-white p-4">
               <p className="text-xs text-[#6a5648]">دخلو اليوم</p>
               <p className="text-3xl font-bold tabular-nums mt-1">
                 {counts.today}
@@ -683,8 +780,7 @@ export default function OpsDesk() {
         </div>
       )}
 
-      {/* Confirm — sheet like sales */}
-      {mode === 'confirm' && (
+      {(mode === 'confirm' || mode === 'ship' || mode === 'all') && (
         <div className="mx-auto max-w-7xl px-3 py-4 space-y-3">
           {statusFocus && focusLabel(statusFocus) ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -702,423 +798,268 @@ export default function OpsDesk() {
           ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-[#6a5648]">
-              جدول التأكيد — اضغطي{' '}
-              <span className="font-bold text-[#2a1810]">تفاصيل</span> باش تشوفي
-              الطلب وتأكديه.
-            </p>
-            <span className="text-xs text-[#6a5648] tabular-nums">
-              {confirmQueue.length} سطر
-            </span>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border border-[#c8d7c0] bg-white shadow-sm">
-            <table className="w-full text-sm text-right min-w-[960px] border-collapse">
-              <thead>
-                <tr className="bg-[#e8f0e3] text-[#2f4a2a] border-b border-[#c8d7c0]">
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0] whitespace-nowrap">
-                    وقت
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
-                    طلب
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
-                    زبون
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
-                    هاتف
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
-                    مدينة
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0] min-w-[160px]">
-                    منتجات
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
-                    COD
-                  </th>
-                  <th className="p-2.5 font-semibold border-l border-[#c8d7c0]">
-                    حالة
-                  </th>
-                  <th className="p-2.5 font-semibold whitespace-nowrap">تفاصيل</th>
-                </tr>
-              </thead>
-              <tbody>
-                {confirmQueue.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={9}
-                      className="p-10 text-center text-[#6a5648]"
-                    >
-                      ما كاين حتى طلب فالطابور.
-                    </td>
-                  </tr>
-                ) : (
-                  confirmQueue.map((o, i) => {
-                    const hot =
-                      minsWaiting(o.created_at) >= 120 ||
-                      o.status === 'NO_ANSWER';
-                    return (
-                      <tr
-                        key={o.order_number}
-                        className={`border-t border-[#e2ebe0] ${
-                          hot
-                            ? 'bg-amber-50/80'
-                            : i % 2 === 0
-                              ? 'bg-white'
-                              : 'bg-[#f7faf5]'
-                        } hover:bg-[#eef5ea]`}
-                      >
-                        <td className="p-2.5 text-xs text-[#6a5648] whitespace-nowrap border-l border-[#e2ebe0]">
-                          {formatAdminDate(o.created_at)}
-                          <div className="text-[11px]">
-                            {timeAgo(o.created_at)}
-                          </div>
-                        </td>
-                        <td className="p-2.5 font-mono text-xs border-l border-[#e2ebe0]">
-                          {o.order_number}
-                        </td>
-                        <td className="p-2.5 font-medium border-l border-[#e2ebe0]">
-                          {hot ? '● ' : ''}
-                          {o.customer_name}
-                        </td>
-                        <td className="p-2.5 dir-ltr text-left border-l border-[#e2ebe0] whitespace-nowrap">
-                          {o.phone}
-                        </td>
-                        <td className="p-2.5 border-l border-[#e2ebe0]">
-                          {o.city}
-                        </td>
-                        <td
-                          className="p-2.5 text-xs max-w-[220px] truncate border-l border-[#e2ebe0]"
-                          title={o.products}
-                        >
-                          {o.products}
-                        </td>
-                        <td className="p-2.5 font-bold tabular-nums border-l border-[#e2ebe0]">
-                          {o.total_amount}
-                        </td>
-                        <td className="p-2.5 text-xs border-l border-[#e2ebe0]">
-                          {o.status_label}
-                        </td>
-                        <td className="p-2">
-                          <button
-                            type="button"
-                            onClick={() => openConfirmDetail(o.order_number)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2a1810] text-white text-xs font-bold"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            تفاصيل
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {detailOpen && active && isConfirm(active) ? (
-            <div className="fixed inset-0 z-40 flex justify-end">
-              <button
-                type="button"
-                className="absolute inset-0 bg-black/35"
-                aria-label="إغلاق"
-                onClick={closeConfirmDetail}
-              />
-              <div className="relative z-10 h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl border-s border-[#e6d9cc]">
-                <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-[#e6d9cc] bg-white px-4 py-3">
-                  <h3 className="font-bold">ورقة الطلب</h3>
+            <p className="text-sm text-[#6a5648]">{sheetHint(mode)}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {mode === 'all' ? (
+                <>
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="بحث…"
+                    className="min-w-[160px] p-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm"
+                  />
                   <button
                     type="button"
-                    onClick={closeConfirmDetail}
-                    className="p-2 rounded-lg border border-[#e6d9cc]"
-                    aria-label="إغلاق"
+                    onClick={() => {
+                      window.location.href = `/api/admin/orders/csv?token=${encodeURIComponent(token)}`;
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
                   >
-                    <X className="w-4 h-4" />
+                    <Download className="w-4 h-4" />
+                    Excel
+                  </button>
+                </>
+              ) : null}
+              {mode === 'ship' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const qs = new URLSearchParams({
+                      token,
+                      template: courier,
+                      status: 'CONFIRMED,READY_TO_SHIP',
+                    });
+                    window.location.href = `/api/admin/orders/export/courier?${qs}`;
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#e6d9cc] bg-white text-sm font-bold"
+                >
+                  <Download className="w-4 h-4" />
+                  CSV شركة
+                </button>
+              ) : null}
+              <span className="text-xs text-[#6a5648] tabular-nums">
+                {sheetRows.length} سطر
+              </span>
+            </div>
+          </div>
+
+          {renderSheet(
+            sheetRows,
+            mode === 'confirm'
+              ? 'ما كاين حتى طلب فالطابور.'
+              : mode === 'ship'
+                ? 'ما كاين حتى طلب للشحن.'
+                : 'ما كاين حتى طلب.',
+          )}
+        </div>
+      )}
+
+      {/* Shared detail panel — actions depend on status */}
+      {detailOpen && active ? (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/35"
+            aria-label="إغلاق"
+            onClick={closeDetail}
+          />
+          <div className="relative z-10 h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl border-s border-[#e6d9cc]">
+            <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-[#e6d9cc] bg-white px-4 py-3">
+              <div>
+                <h3 className="font-bold">ورقة الطلب</h3>
+                <p className="text-xs text-[#6a5648]">{active.status_label}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeDetail}
+                className="p-2 rounded-lg border border-[#e6d9cc]"
+                aria-label="إغلاق"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-5">
+              {risk?.risky ? (
+                <p className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  هاد الرقم عندو إلغاء/إرجاع متكرر من قبل.
+                </p>
+              ) : null}
+
+              <div>
+                <p className="text-xs text-[#6a5648] font-mono">
+                  {active.order_number} · {timeAgo(active.created_at)}
+                </p>
+                <h2 className="text-2xl font-bold mt-1 leading-tight">
+                  {active.customer_name}
+                </h2>
+                <p className="text-xl font-semibold mt-2 dir-ltr tracking-wide">
+                  {active.phone}
+                </p>
+                <p className="text-2xl font-bold tabular-nums mt-3">
+                  {active.total_amount}{' '}
+                  <span className="text-sm text-[#6a5648]">DH COD</span>
+                </p>
+              </div>
+
+              <div className="text-sm space-y-1.5 leading-relaxed rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
+                <p>
+                  <span className="text-[#6a5648]">المدينة: </span>
+                  {active.city}
+                </p>
+                <p>
+                  <span className="text-[#6a5648]">العنوان: </span>
+                  {active.address}
+                </p>
+                <p>
+                  <span className="text-[#6a5648]">المنتجات: </span>
+                  {active.products}
+                </p>
+                {active.tracking_number ? (
+                  <p>
+                    <span className="text-[#6a5648]">تتبع: </span>
+                    {active.tracking_number}
+                  </p>
+                ) : null}
+                {active.cancel_reason ? (
+                  <p>
+                    <span className="text-[#6a5648]">سبب الإلغاء: </span>
+                    {active.cancel_reason}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Contact — always useful */}
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={telHref(active.phone)}
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
+                >
+                  <Phone className="w-4 h-4" />
+                  اتصال
+                </a>
+                <a
+                  href={customerWhatsAppHref(
+                    active.phone,
+                    buildCallCenterConfirmMessage(active),
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#25D366] text-white font-bold text-sm"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  واتساب
+                </a>
+              </div>
+
+              {/* Confirm desk actions */}
+              {isConfirm(active) && !showCancel ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-[#6a5648]">قرار التأكيد</p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void patch(
+                        active.order_number,
+                        { status: 'CONFIRMED' },
+                        true,
+                      )
+                    }
+                    className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-700 text-white font-bold disabled:opacity-40"
+                  >
+                    <Check className="w-5 h-5" />
+                    تأكيد الطلب
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={busy || attempt >= 1}
+                      onClick={() =>
+                        void patch(active.order_number, {
+                          status: 'NO_ANSWER',
+                          notes: notes
+                            ? `${notes} · مكالمة أولى`
+                            : 'مكالمة أولى',
+                        })
+                      }
+                      className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-amber-500 text-amber-950 font-bold text-sm disabled:opacity-40"
+                    >
+                      <PhoneMissed className="w-4 h-4" />
+                      مكالمة 1
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void patch(active.order_number, {
+                          status: 'NO_ANSWER',
+                          notes: notes
+                            ? `${notes} · مكالمة ثانية`
+                            : 'مكالمة ثانية',
+                        })
+                      }
+                      className="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-amber-700 text-amber-950 font-bold text-sm disabled:opacity-40"
+                    >
+                      <PhoneMissed className="w-4 h-4" />
+                      مكالمة 2
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setShowCancel(true)}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-red-600 text-red-700 font-bold disabled:opacity-40"
+                  >
+                    <X className="w-5 h-5" />
+                    إلغاء
                   </button>
                 </div>
-                <div className="p-4 sm:p-5 space-y-5">
-                  {risk?.risky ? (
-                    <p className="flex gap-2 text-sm text-red-800 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                      هاد الرقم عندو إلغاء/إرجاع متكرر من قبل.
-                    </p>
-                  ) : null}
+              ) : null}
 
-                  <div>
-                    <p className="text-xs text-[#6a5648] font-mono">
-                      {active.order_number} · {timeAgo(active.created_at)}
-                    </p>
-                    <h2 className="text-2xl font-bold mt-1 leading-tight">
-                      {active.customer_name}
-                    </h2>
-                    <p className="text-xl font-semibold mt-2 dir-ltr tracking-wide">
-                      {active.phone}
-                    </p>
-                    <p className="text-2xl font-bold tabular-nums mt-3">
-                      {active.total_amount}{' '}
-                      <span className="text-sm text-[#6a5648]">DH COD</span>
-                    </p>
-                  </div>
-
-                  <div className="text-sm space-y-1.5 leading-relaxed rounded-xl bg-[#faf6f1] border border-[#e6d9cc] p-3">
-                    <p>
-                      <span className="text-[#6a5648]">المدينة: </span>
-                      {active.city}
-                    </p>
-                    <p>
-                      <span className="text-[#6a5648]">العنوان: </span>
-                      {active.address}
-                    </p>
-                    <p>
-                      <span className="text-[#6a5648]">المنتجات: </span>
-                      {active.products}
-                    </p>
-                    <p>
-                      <span className="text-[#6a5648]">الحالة: </span>
-                      {active.status_label}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href={telHref(active.phone)}
-                      className="flex items-center justify-center gap-2 py-4 rounded-xl bg-[#2a1810] text-white font-bold"
-                    >
-                      <Phone className="w-5 h-5" />
-                      اتصال
-                    </a>
-                    <a
-                      href={customerWhatsAppHref(
-                        active.phone,
-                        buildCallCenterConfirmMessage(active),
-                      )}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 py-4 rounded-xl bg-[#25D366] text-white font-bold"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                      واتساب
-                    </a>
-                  </div>
-
-                  {!showCancel ? (
-                    <div className="grid gap-2">
+              {isConfirm(active) && showCancel ? (
+                <div className="space-y-3">
+                  <p className="font-bold">سبب الإلغاء</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CANCEL_REASONS.map((r) => (
                       <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          void patch(
-                            active.order_number,
-                            { status: 'CONFIRMED' },
-                            true,
-                          )
-                        }
-                        className="flex items-center justify-center gap-2 py-4 rounded-xl bg-emerald-700 text-white font-bold disabled:opacity-40"
-                      >
-                        <Check className="w-5 h-5" />
-                        تأكيد
-                      </button>
-                      <button
+                        key={r}
                         type="button"
                         disabled={busy}
                         onClick={() =>
                           void patch(
                             active.order_number,
                             {
-                              status: 'NO_ANSWER',
-                              notes: notes || 'ما جاوبش',
+                              status: 'CANCELLED',
+                              cancel_reason: r,
+                              notes: r,
                             },
                             true,
                           )
                         }
-                        className="flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-amber-600 text-amber-950 font-bold disabled:opacity-40"
+                        className="px-3 py-2 rounded-lg border border-[#e6d9cc] bg-[#faf6f1] text-sm"
                       >
-                        <PhoneMissed className="w-5 h-5" />
-                        ما جاوبش
+                        {r}
                       </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setShowCancel(true)}
-                        className="flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-red-600 text-red-700 font-bold disabled:opacity-40"
-                      >
-                        <X className="w-5 h-5" />
-                        إلغاء
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="font-bold">سبب الإلغاء</p>
-                      <div className="flex flex-wrap gap-2">
-                        {CANCEL_REASONS.map((r) => (
-                          <button
-                            key={r}
-                            type="button"
-                            disabled={busy}
-                            onClick={() =>
-                              void patch(
-                                active.order_number,
-                                {
-                                  status: 'CANCELLED',
-                                  cancel_reason: r,
-                                  notes: r,
-                                },
-                                true,
-                              )
-                            }
-                            className="px-3 py-2 rounded-lg border border-[#e6d9cc] bg-[#faf6f1] text-sm"
-                          >
-                            {r}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowCancel(false)}
-                        className="text-sm text-[#6a5648]"
-                      >
-                        رجوع
-                      </button>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-xs text-[#6a5648]">ملاحظة</label>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={2}
-                      placeholder="علامة قريبة، رقم ثاني…"
-                      className="mt-1 w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1] text-sm"
-                    />
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void patch(active.order_number, {
-                          status: active.status,
-                          notes,
-                        })
-                      }
-                      className="mt-1 text-sm text-[#6a5648] underline"
-                    >
-                      حفظ
-                    </button>
+                    ))}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCancel(false)}
+                    className="text-sm text-[#6a5648]"
+                  >
+                    رجوع
+                  </button>
                 </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      )}
+              ) : null}
 
-      {/* Ship desk */}
-      {mode === 'ship' && (
-        <div className="mx-auto max-w-5xl px-3 py-4">
-          {statusFocus && focusLabel(statusFocus) ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
-                فلتر: {focusLabel(statusFocus)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setStatusFocus(null)}
-                className="text-[#6a5648] underline"
-              >
-                إزالة الفلتر
-              </button>
-            </div>
-          ) : null}
-
-          <div className="lg:hidden flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
-            {shipQueue.map((o) => (
-              <button
-                key={o.order_number}
-                type="button"
-                onClick={() => setActiveId(o.order_number)}
-                className={`shrink-0 rounded-xl border px-3 py-2 text-right min-w-[140px] ${
-                  o.order_number === activeId
-                    ? 'bg-[#2a1810] text-white border-[#2a1810]'
-                    : 'bg-white border-[#e6d9cc]'
-                }`}
-              >
-                <p className="font-bold text-sm truncate">{o.customer_name}</p>
-                <p className="text-xs opacity-80">
-                  {o.total_amount} · {timeAgo(o.created_at)}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          <div className="grid lg:grid-cols-[240px_1fr] gap-4 items-start">
-            <aside className="hidden lg:flex flex-col rounded-2xl border border-[#e6d9cc] bg-white overflow-hidden max-h-[calc(100dvh-180px)]">
-              <div className="px-3 py-2 border-b border-[#e6d9cc] text-sm font-bold bg-[#faf6f1]">
-                الطابور
-              </div>
-              <div className="overflow-y-auto">
-                {shipQueue.length === 0 ? (
-                  <p className="p-6 text-sm text-[#6a5648] text-center">فارغ</p>
-                ) : (
-                  shipQueue.map((o) => {
-                    const sel = o.order_number === activeId;
-                    return (
-                      <button
-                        key={o.order_number}
-                        type="button"
-                        onClick={() => setActiveId(o.order_number)}
-                        className={`w-full text-right px-3 py-3 border-b border-[#f0e8df] ${
-                          sel ? 'bg-[#2a1810] text-white' : 'hover:bg-[#faf6f1]'
-                        }`}
-                      >
-                        <div className="flex justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-bold truncate">
-                              {o.customer_name}
-                            </p>
-                            <p
-                              className={`text-xs truncate ${sel ? 'text-white/70' : 'text-[#6a5648]'}`}
-                            >
-                              {o.city} · {timeAgo(o.created_at)}
-                            </p>
-                          </div>
-                          <span className="font-bold tabular-nums shrink-0">
-                            {o.total_amount}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </aside>
-
-            <section className="rounded-2xl border border-[#e6d9cc] bg-white min-h-[480px]">
-              {!active || !isShip(active) ? (
-                <div className="flex items-center justify-center min-h-[480px] text-[#6a5648] text-sm p-8 text-center">
-                  ما كاين حتى طلب للشحن.
-                </div>
-              ) : (
-                <div className="p-5 sm:p-8 space-y-5">
-                  <div className="flex flex-wrap justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-mono text-[#6a5648]">
-                        {active.order_number} · {active.status_label}
-                      </p>
-                      <h2 className="text-2xl font-bold mt-1">
-                        {active.customer_name}
-                      </h2>
-                      <p className="text-sm text-[#6a5648] mt-1">
-                        {active.city} — {active.address}
-                      </p>
-                      <p className="text-sm mt-2">{active.products}</p>
-                      <p className="text-sm dir-ltr mt-1">{active.phone}</p>
-                    </div>
-                    <p className="text-2xl font-bold">{active.total_amount} DH</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 items-center">
+              {/* Ship actions */}
+              {(active.status === 'CONFIRMED' ||
+                active.status === 'READY_TO_SHIP') && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-[#6a5648]">الشحن</p>
+                  <div className="flex flex-wrap gap-2">
                     {COURIERS.map((c) => (
                       <button
                         key={c.id}
@@ -1136,161 +1077,112 @@ export default function OpsDesk() {
                         {c.label}
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const qs = new URLSearchParams({
-                          token,
-                          template: courier,
-                          status: 'CONFIRMED,READY_TO_SHIP',
-                        });
-                        window.location.href = `/api/admin/orders/export/courier?${qs}`;
-                      }}
-                      className="ms-auto inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-[#e6d9cc] text-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      CSV
-                    </button>
                   </div>
-
                   <input
                     value={tracking}
                     onChange={(e) => setTracking(e.target.value)}
                     placeholder="رقم التتبع"
-                    className="w-full p-3.5 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
+                    className="w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1]"
                   />
-
-                  {(active.status === 'CONFIRMED' ||
-                    active.status === 'READY_TO_SHIP') && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={async () => {
-                          await copyText(buildCourierCopyLine(active));
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 1200);
-                        }}
-                        className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-[#2a1810] font-bold"
-                      >
-                        <Copy className="w-5 h-5" />
-                        {copied ? 'تم' : 'نسخ للشركة'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void doShip(active.order_number)}
-                        className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#2a1810] text-white font-bold"
-                      >
-                        <Truck className="w-5 h-5" />
-                        تم الإرسال
-                      </button>
-                    </div>
-                  )}
-
-                  {active.status === 'SHIPPED' && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          void patch(active.order_number, {
-                            status: 'DELIVERED',
-                          })
-                        }
-                        className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-emerald-700 text-white font-bold"
-                      >
-                        <CheckCircle2 className="w-5 h-5" />
-                        تم التسليم
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() =>
-                          void patch(active.order_number, {
-                            status: 'RETURNED',
-                          })
-                        }
-                        className="flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-red-600 text-red-700 font-bold"
-                      >
-                        <RotateCcw className="w-5 h-5" />
-                        مرتجع
-                      </button>
-                    </div>
-                  )}
+                  <div className="grid gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        await copyText(buildCourierCopyLine(active));
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1200);
+                      }}
+                      className="flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-[#2a1810] font-bold"
+                    >
+                      <Copy className="w-4 h-4" />
+                      {copied ? 'تم النسخ' : 'نسخ للشركة'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void doShip(active.order_number)}
+                      className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#2a1810] text-white font-bold"
+                    >
+                      <Truck className="w-4 h-4" />
+                      تم الإرسال (فالطريق)
+                    </button>
+                  </div>
                 </div>
               )}
-            </section>
-          </div>
-        </div>
-      )}
 
-      {mode === 'all' && (
-        <div className="mx-auto max-w-5xl px-3 py-4 space-y-3">
-          {statusFocus && focusLabel(statusFocus) ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-full bg-white border border-[#e6d9cc] px-3 py-1">
-                فلتر: {focusLabel(statusFocus)}
-              </span>
-              <button
-                type="button"
-                onClick={() => setStatusFocus(null)}
-                className="text-[#6a5648] underline"
-              >
-                إزالة الفلتر
-              </button>
+              {active.status === 'SHIPPED' && (
+                <div className="grid gap-2">
+                  <p className="text-xs font-bold text-[#6a5648]">التتبع</p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void patch(
+                        active.order_number,
+                        { status: 'DELIVERED' },
+                        true,
+                      )
+                    }
+                    className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-emerald-700 text-white font-bold"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    تم التسليم
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void patch(
+                        active.order_number,
+                        { status: 'RETURNED' },
+                        true,
+                      )
+                    }
+                    className="flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-red-600 text-red-700 font-bold"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    مرتجع
+                  </button>
+                </div>
+              )}
+
+              {(active.status === 'DELIVERED' ||
+                active.status === 'RETURNED' ||
+                active.status === 'CANCELLED') && (
+                <p className="text-sm text-[#6a5648] bg-[#faf6f1] border border-[#e6d9cc] rounded-xl px-3 py-3">
+                  هاد الطلب مسدود فالحالة:{' '}
+                  <span className="font-bold">{active.status_label}</span>
+                </p>
+              )}
+
+              <div>
+                <label className="text-xs text-[#6a5648]">ملاحظة</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="علامة قريبة، رقم ثاني، ملاحظة المكالمة…"
+                  className="mt-1 w-full p-3 rounded-xl border border-[#e6d9cc] bg-[#faf6f1] text-sm"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void patch(active.order_number, {
+                      status: active.status,
+                      notes,
+                    })
+                  }
+                  className="mt-1 text-sm text-[#6a5648] underline"
+                >
+                  حفظ الملاحظة
+                </button>
+              </div>
             </div>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="بحث…"
-              className="flex-1 min-w-[160px] p-3 rounded-xl border border-[#e6d9cc] bg-white"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = `/api/admin/orders/csv?token=${encodeURIComponent(token)}`;
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-3 rounded-xl bg-[#2a1810] text-white font-bold text-sm"
-            >
-              <Download className="w-4 h-4" />
-              Excel
-            </button>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-[#e6d9cc] bg-white">
-            <table className="w-full text-sm text-right min-w-[800px]">
-              <thead className="bg-[#faf6f1] text-[#6a5648]">
-                <tr>
-                  <th className="p-3 font-medium">وقت</th>
-                  <th className="p-3 font-medium">طلب</th>
-                  <th className="p-3 font-medium">زبون</th>
-                  <th className="p-3 font-medium">هاتف</th>
-                  <th className="p-3 font-medium">مدينة</th>
-                  <th className="p-3 font-medium">COD</th>
-                  <th className="p-3 font-medium">حالة</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAll.map((o) => (
-                  <tr key={o.order_number} className="border-t border-[#f0e8df]">
-                    <td className="p-3 text-xs text-[#6a5648] whitespace-nowrap">
-                      {formatAdminDate(o.created_at)}
-                    </td>
-                    <td className="p-3 font-mono text-xs">{o.order_number}</td>
-                    <td className="p-3 font-medium">{o.customer_name}</td>
-                    <td className="p-3 dir-ltr text-left">{o.phone}</td>
-                    <td className="p-3">{o.city}</td>
-                    <td className="p-3 font-bold">{o.total_amount}</td>
-                    <td className="p-3 text-xs">{o.status_label}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
