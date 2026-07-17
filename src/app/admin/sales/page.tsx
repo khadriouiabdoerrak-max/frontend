@@ -1,11 +1,5 @@
-import type { Metadata } from 'next';
-import AdminSalesClient from './AdminSalesClient';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Sales | Tajouki',
-  robots: { index: false, follow: false },
-};
-
-export default function Page() {
-  return <AdminSalesClient />;
+export default function SalesRedirectPage() {
+  redirect('/admin?tab=monitor');
 }

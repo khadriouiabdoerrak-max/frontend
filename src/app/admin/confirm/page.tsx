@@ -1,11 +1,5 @@
-import type { Metadata } from 'next';
-import ConfirmDeskClient from './ConfirmDeskClient';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Confirmation | Tajouki',
-  robots: { index: false, follow: false },
-};
-
-export default function Page() {
-  return <ConfirmDeskClient />;
+export default function ConfirmRedirectPage() {
+  redirect('/admin?tab=confirm');
 }
