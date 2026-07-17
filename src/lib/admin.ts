@@ -15,6 +15,10 @@ export type AdminOrder = {
   cancel_reason?: string;
   tracking_number?: string;
   courier_name?: string;
+  follow_up_at?: string | null;
+  status_changed_at?: string | null;
+  days_open?: number;
+  days_in_status?: number;
   confirmed_at?: string | null;
   shipped_at?: string | null;
   delivered_at?: string | null;
@@ -23,6 +27,11 @@ export type AdminOrder = {
 
 export type AdminStats = {
   today: number;
+  en_attente?: number;
+  appel_1?: number;
+  appel_2?: number;
+  appel_3?: number;
+  reporte?: number;
   pending: number;
   confirmed: number;
   ready_to_ship: number;
