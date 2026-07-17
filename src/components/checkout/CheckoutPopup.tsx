@@ -18,17 +18,22 @@ function itemImage(slug: string, fallback?: string) {
   return fallback ?? '/images/oxiprime-bundle-clear-products.webp';
 }
 
-export function CheckoutPopup({
-  isOpen,
-  onClose,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  const { items, getCartTotal, clearCart } = useCartStore();
+type FieldErrors = {
+  fullName?: string;
+  phone?: string;
+  city?: string;
+};
+
+export function CheckoutPopup() {
+  const items = useCartStore((state) => state.items);
+  const isCheckoutOpen = useCartStore((state) => state.isCheckoutOpen);
+  const getCartTotal = useCartStore((state) => state.getCartTotal);
+  const clearCart = useCartStore((state) => state.clearCart);
+  const closeCheckout = useCartStore((state) => state.closeCheckout);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -41,24 +46,26 @@ export function CheckoutPopup({
   const totals = calcOrderTotal(subtotal);
 
   useEffect(() => {
-    if (!isOpen || items.length === 0) return;
+    if (!isCheckoutOpen || items.length === 0) return;
     trackInitiateCheckout({
       value: totals.total,
       currency: 'MAD',
       content_ids: items.map((item) => item.id),
     });
-  }, [isOpen, items, totals.total]);
+  }, [isCheckoutOpen, items, totals.total]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isCheckoutOpen) {
       document.body.style.overflow = 'hidden';
+      setError('');
+      setFieldErrors({});
     } else {
       document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isCheckoutOpen]);
 
   const normalizePhone = (phone: string): string => {
     const cleaned = phone.replace(/[\s.\-()]/g, '');
@@ -68,36 +75,39 @@ export function CheckoutPopup({
     return cleaned;
   };
 
+  const validate = (): FieldErrors => {
+    const next: FieldErrors = {};
+    if (formData.fullName.trim().length < 3) {
+      next.fullName = 'الرجاء إدخال الاسم الكامل.';
+    }
+    const normalizedPhone = normalizePhone(formData.phone);
+    if (!/^\+2126\d{8}$|^\+2127\d{8}$/.test(normalizedPhone)) {
+      next.phone = 'الرجاء إدخال رقم هاتف مغربي صحيح (06 أو 07).';
+    }
+    if (formData.city.trim().length < 2) {
+      next.city = 'الرجاء إدخال المدينة.';
+    }
+    return next;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
 
     if (items.length === 0) {
       setError('السلة فارغة. أضيفي منتجا قبل إتمام الطلب.');
-      setIsLoading(false);
       return;
     }
 
-    if (formData.fullName.trim().length < 3) {
-      setError('الرجاء إدخال الاسم الكامل.');
-      setIsLoading(false);
+    const nextErrors = validate();
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setError('كمّلي المعلومات المطلوبة تحت، من بعد أكدي الطلب.');
       return;
     }
 
+    setIsLoading(true);
     const normalizedPhone = normalizePhone(formData.phone);
-    const phoneRegex = /^\+2126\d{8}$|^\+2127\d{8}$/;
-    if (!phoneRegex.test(normalizedPhone)) {
-      setError('الرجاء إدخال رقم هاتف مغربي صحيح (06 أو 07).');
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.city.trim().length < 2) {
-      setError('الرجاء إدخال المدينة.');
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const response = await fetch('/api/orders', {
@@ -131,9 +141,10 @@ export function CheckoutPopup({
         order_id: data.order_number,
       });
 
+      const orderNumber = data.order_number as string;
+      setFormData({ fullName: '', phone: '', city: '', address: '' });
       clearCart();
-      onClose();
-      router.push(`/thank-you/${encodeURIComponent(data.order_number)}`);
+      router.push(`/thank-you/${encodeURIComponent(orderNumber)}`);
     } catch (err) {
       setError(
         err instanceof Error && err.message !== 'ORDER_FAILED'
@@ -145,7 +156,7 @@ export function CheckoutPopup({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isCheckoutOpen) return null;
 
   const waHref = cartWhatsAppHref(
     items.map((i) => ({
@@ -157,12 +168,20 @@ export function CheckoutPopup({
     formData.city || undefined,
   );
 
-  const inputClass =
-    'w-full p-3.5 border border-champagne/50 rounded-btn bg-white focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold transition-colors text-cocoa text-right';
+  const inputClass = (hasError?: string) =>
+    `w-full p-3.5 border rounded-btn bg-white focus:outline-none focus:ring-1 transition-colors text-cocoa text-right ${
+      hasError
+        ? 'border-error focus:border-error focus:ring-error'
+        : 'border-champagne/50 focus:border-gold focus:ring-gold'
+    }`;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div
+        className="absolute inset-0 bg-black/60"
+        onClick={closeCheckout}
+        aria-hidden
+      />
 
       <div className="relative bg-ivory w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-modal overflow-hidden flex flex-col max-h-[95vh]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-champagne/30 bg-background">
@@ -174,7 +193,7 @@ export function CheckoutPopup({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeCheckout}
             className="p-2 hover:bg-champagne/30 rounded-full transition-colors"
             aria-label="إغلاق"
           >
@@ -183,8 +202,7 @@ export function CheckoutPopup({
         </div>
 
         <div className="overflow-y-auto px-5 py-5">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Order summary with product images */}
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
             <div className="bg-background rounded-card p-4 border border-champagne/30 space-y-3">
               {items.map((item) => (
                 <div key={item.id} className="flex items-center gap-3">
@@ -198,7 +216,7 @@ export function CheckoutPopup({
                     />
                   </div>
                   <div className="min-w-0 flex-1 text-right">
-                    <p className="text-sm font-bold text-cocoa line-clamp-2 leading-snug">
+                    <p className="text-sm font-bold text-cocoa line-clamp-2 leading-snug break-words">
                       {item.nameAr}
                     </p>
                     <p className="text-xs text-muted-brown mt-0.5">
@@ -250,56 +268,77 @@ export function CheckoutPopup({
             <div className="space-y-3.5">
               <div>
                 <label className="block text-sm font-bold text-cocoa mb-1.5 text-right">
-                  الاسم الكامل <span className="text-error">*</span>
+                  الاسم الكامل
                 </label>
                 <input
                   type="text"
-                  required
                   value={formData.fullName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, fullName: e.target.value })
-                  }
-                  className={inputClass}
+                  onChange={(e) => {
+                    setFormData({ ...formData, fullName: e.target.value });
+                    if (fieldErrors.fullName) {
+                      setFieldErrors({ ...fieldErrors, fullName: undefined });
+                    }
+                  }}
+                  className={inputClass(fieldErrors.fullName)}
                   placeholder="الاسم والنسب"
                   autoComplete="name"
                 />
+                {fieldErrors.fullName && (
+                  <p className="text-xs text-error mt-1 text-right">
+                    {fieldErrors.fullName}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-cocoa mb-1.5 text-right">
-                  رقم الهاتف <span className="text-error">*</span>
+                  رقم الهاتف
                 </label>
                 <input
                   type="tel"
-                  required
                   dir="ltr"
                   value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className={`${inputClass} font-sans`}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value });
+                    if (fieldErrors.phone) {
+                      setFieldErrors({ ...fieldErrors, phone: undefined });
+                    }
+                  }}
+                  className={`${inputClass(fieldErrors.phone)} font-sans`}
                   style={{ textAlign: 'right' }}
                   placeholder="06XXXXXXXX"
                   autoComplete="tel"
                   inputMode="numeric"
                 />
+                {fieldErrors.phone && (
+                  <p className="text-xs text-error mt-1 text-right">
+                    {fieldErrors.phone}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-cocoa mb-1.5 text-right">
-                  المدينة <span className="text-error">*</span>
+                  المدينة
                 </label>
                 <input
                   type="text"
-                  required
                   value={formData.city}
-                  onChange={(e) =>
-                    setFormData({ ...formData, city: e.target.value })
-                  }
-                  className={inputClass}
+                  onChange={(e) => {
+                    setFormData({ ...formData, city: e.target.value });
+                    if (fieldErrors.city) {
+                      setFieldErrors({ ...fieldErrors, city: undefined });
+                    }
+                  }}
+                  className={inputClass(fieldErrors.city)}
                   placeholder="مثال: الدار البيضاء"
                   autoComplete="address-level2"
                 />
+                {fieldErrors.city && (
+                  <p className="text-xs text-error mt-1 text-right">
+                    {fieldErrors.city}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -312,7 +351,7 @@ export function CheckoutPopup({
                   onChange={(e) =>
                     setFormData({ ...formData, address: e.target.value })
                   }
-                  className={`${inputClass} resize-none`}
+                  className={`${inputClass()} resize-none`}
                   placeholder="الحي، الشارع، رقم المنزل..."
                   autoComplete="street-address"
                 />

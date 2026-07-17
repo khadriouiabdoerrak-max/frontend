@@ -18,6 +18,7 @@ export interface CartItem extends CartProduct {
 interface CartStore {
   items: CartItem[];
   isOpen: boolean;
+  isCheckoutOpen: boolean;
   addItem: (product: CartProduct, options?: { open?: boolean }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -25,6 +26,9 @@ interface CartStore {
   toggleCart: () => void;
   openCart: () => void;
   closeCart: () => void;
+  openCheckout: () => void;
+  closeCheckout: () => void;
+  resetCheckoutFlow: () => void;
   getCartTotal: () => number;
   getIndividualCount: () => number;
   hasBundle: () => boolean;
@@ -35,6 +39,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      isCheckoutOpen: false,
 
       addItem: (product, options) => {
         const shouldOpen = options?.open !== false;
@@ -82,10 +87,26 @@ export const useCartStore = create<CartStore>()(
         }));
       },
 
-      clearCart: () => set({ items: [] }),
-      toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
-      openCart: () => set({ isOpen: true }),
+      clearCart: () =>
+        set({ items: [], isOpen: false, isCheckoutOpen: false }),
+
+      toggleCart: () =>
+        set((state) => ({
+          isOpen: !state.isOpen,
+          isCheckoutOpen: false,
+        })),
+
+      openCart: () => set({ isOpen: true, isCheckoutOpen: false }),
+
       closeCart: () => set({ isOpen: false }),
+
+      /** Cart closes first — only the checkout form stays on screen. */
+      openCheckout: () => set({ isOpen: false, isCheckoutOpen: true }),
+
+      closeCheckout: () => set({ isCheckoutOpen: false }),
+
+      resetCheckoutFlow: () =>
+        set({ isOpen: false, isCheckoutOpen: false }),
 
       getCartTotal: () =>
         get().items.reduce(

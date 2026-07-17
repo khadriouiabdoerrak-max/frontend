@@ -1,19 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { useCartStore } from '@/lib/store';
 import { ShoppingBag, X, Plus, Minus, ShieldCheck, Phone, Star } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { bundleProduct } from '@/lib/products';
 import { calcOrderTotal } from '@/lib/shipping';
 import { cartWhatsAppHref } from '@/lib/whatsapp';
-
-const CheckoutPopup = dynamic(
-  () =>
-    import('@/components/checkout/CheckoutPopup').then((mod) => mod.CheckoutPopup),
-  { ssr: false },
-);
 
 function CartUpsell({
   individualCount,
@@ -86,6 +79,7 @@ export function CartDrawer() {
   const {
     isOpen,
     closeCart,
+    openCheckout,
     items,
     updateQuantity,
     removeItem,
@@ -97,7 +91,6 @@ export function CartDrawer() {
   } = useCartStore();
 
   const [isMounted, setIsMounted] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -110,7 +103,6 @@ export function CartDrawer() {
   const bundleInCart = hasBundle();
 
   const handleAddBundle = () => {
-    // Remove individual products, add bundle
     clearCart();
     addItem({
       id: bundleProduct.id,
@@ -303,10 +295,8 @@ export function CartDrawer() {
             </p>
 
             <button
-              onClick={() => {
-                closeCart();
-                setCheckoutOpen(true);
-              }}
+              type="button"
+              onClick={openCheckout}
               className="w-full bg-cocoa text-ivory py-4 font-bold text-base rounded-btn hover:bg-espresso transition-colors"
             >
               إتمام الطلب
@@ -330,12 +320,6 @@ export function CartDrawer() {
           </div>
         )}
       </div>
-
-      {/* Checkout Popup */}
-      <CheckoutPopup
-        isOpen={checkoutOpen}
-        onClose={() => setCheckoutOpen(false)}
-      />
     </>
   );
 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CheckCircle2, Phone } from 'lucide-react';
 import { getWhatsAppHref } from '@/lib/site';
 import { buildOrderConfirmWhatsAppMessage } from '@/lib/whatsapp';
+import { ThankYouCleanup } from '@/components/checkout/ThankYouCleanup';
 
 export const metadata: Metadata = {
   title: 'تم استلام طلبكِ | تاجكِ',
@@ -23,6 +24,7 @@ export default async function ThankYouPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-6 py-20">
+      <ThankYouCleanup />
       <div className="max-w-lg w-full text-center space-y-6">
         <div className="w-20 h-20 bg-success/10 text-success rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-10 h-10" />

@@ -1,23 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { CheckoutPopup } from '@/components/checkout/CheckoutPopup';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useCartStore } from '@/lib/store';
 
+/** Dedicated checkout URL — opens the shared COD form, closes back to home. */
 export default function CheckoutPage() {
-  const [isOpen, setIsOpen] = useState(true);
   const router = useRouter();
+  const openCheckout = useCartStore((state) => state.openCheckout);
+  const isCheckoutOpen = useCartStore((state) => state.isCheckoutOpen);
+  const items = useCartStore((state) => state.items);
+  const openedRef = useRef(false);
 
   useEffect(() => {
-    // If the popup is closed, redirect back to home
-    if (!isOpen) {
+    if (items.length === 0) {
+      router.replace('/');
+      return;
+    }
+    openCheckout();
+    openedRef.current = true;
+  }, [items.length, openCheckout, router]);
+
+  useEffect(() => {
+    if (openedRef.current && !isCheckoutOpen) {
       router.push('/');
     }
-  }, [isOpen, router]);
+  }, [isCheckoutOpen, router]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <CheckoutPopup isOpen={isOpen} onClose={() => setIsOpen(false)} />
-    </div>
-  );
+  return <div className="min-h-screen bg-background" aria-hidden />;
 }
