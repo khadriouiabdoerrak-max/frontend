@@ -73,12 +73,12 @@ export function Navbar() {
             className="flex items-center gap-2.5 sm:gap-3 shrink-0 group"
             aria-label="تاجكِ — الصفحة الرئيسية"
           >
-            <BrandLogo className="transition-transform group-hover:scale-[1.03] shadow-sm ring-1 ring-champagne/50" />
+            <BrandLogo className="transition-transform group-hover:scale-[1.03] shadow-sm" />
             <div className="flex flex-col leading-none gap-0.5">
               <span className="text-xl sm:text-2xl font-bold text-cocoa leading-tight">
                 تاجكِ
               </span>
-              <span className="text-[10px] sm:text-[11px] text-gold font-medium tracking-wide">
+              <span className="text-[10px] sm:text-[11px] text-gold font-sans tracking-[0.14em] uppercase">
                 OXIPRIME
               </span>
             </div>
