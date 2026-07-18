@@ -297,3 +297,80 @@ export async function fetchOrderAudit(token: string, orderNumber: string) {
     }[];
   };
 }
+
+export type AdminMetrics = {
+  from: string;
+  to: string;
+  clicks_raw: number;
+  clicks_counted: number;
+  orders: number;
+  conversion_rate: number;
+  revenue: number;
+  by_status: Record<string, number>;
+  by_day: { date: string; clicks: number; orders: number }[];
+  top_cities: { city: string; count: number }[];
+  top_products: { name: string; quantity: number }[];
+};
+
+export type AdminOrderDetail = AdminOrder & {
+  items?: { name: string; quantity: number; unit_price: number }[];
+  audit?: {
+    operator: string;
+    action: string;
+    detail: string;
+    created_at: string;
+  }[];
+};
+
+export async function adminLogin(username: string, password: string) {
+  const res = await fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+    cache: 'no-store',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل تسجيل الدخول');
+  return data as { token: string; expires_at: string };
+}
+
+export async function adminLogout(token: string) {
+  await fetch('/api/admin/logout', {
+    method: 'POST',
+    headers: { 'X-Admin-Token': token },
+    cache: 'no-store',
+  }).catch(() => undefined);
+}
+
+export async function fetchAdminMetrics(
+  token: string,
+  range?: { from?: string; to?: string },
+) {
+  const qs = new URLSearchParams();
+  if (range?.from) qs.set('from', range.from);
+  if (range?.to) qs.set('to', range.to);
+  const q = qs.toString() ? `?${qs}` : '';
+  const res = await fetch(`/api/admin/metrics${q}`, {
+    headers: { 'X-Admin-Token': token },
+    cache: 'no-store',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل المقاييس');
+  return data as AdminMetrics;
+}
+
+export async function fetchAdminOrderDetail(
+  token: string,
+  orderNumber: string,
+) {
+  const res = await fetch(
+    `/api/admin/orders/${encodeURIComponent(orderNumber)}`,
+    {
+      headers: { 'X-Admin-Token': token },
+      cache: 'no-store',
+    },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || 'فشل تفاصيل الطلب');
+  return data as AdminOrderDetail;
+}

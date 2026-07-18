@@ -24,11 +24,20 @@ const TrackingScripts = dynamic(
   { ssr: false },
 );
 
+const AnalyticsBeacon = dynamic(
+  () =>
+    import('@/components/tracking/AnalyticsBeacon').then(
+      (mod) => mod.AnalyticsBeacon,
+    ),
+  { ssr: false },
+);
+
 /** Load non-critical chrome after hydration so the first paint stays light on phones. */
 export function DeferredChrome() {
   return (
     <>
       <TrackingScripts />
+      <AnalyticsBeacon />
       <StickyOrderBar />
       <WhatsAppButton />
     </>
