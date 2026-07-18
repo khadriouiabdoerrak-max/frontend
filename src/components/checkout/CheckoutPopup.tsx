@@ -213,6 +213,7 @@ export function CheckoutPopup() {
                       alt={item.nameAr}
                       fill
                       sizes="64px"
+                      quality={50}
                       className="object-cover"
                     />
                   </div>

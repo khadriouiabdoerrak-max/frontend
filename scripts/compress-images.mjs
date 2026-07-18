@@ -9,6 +9,10 @@ const outDir = path.join(dir, '_compressed');
 
 fs.mkdirSync(outDir, { recursive: true });
 
+/**
+ * Balanced compress: sharp enough on phone, still light.
+ * Logo gets harder limits; product/hero stay clearer.
+ */
 const files = fs
   .readdirSync(dir)
   .filter(
@@ -25,8 +29,14 @@ for (const file of files) {
   const output = path.join(outDir, file);
   const before = fs.statSync(input).size;
   const isLogo = file.includes('logo');
-  const maxEdge = isLogo ? 480 : 1000;
-  const quality = isLogo ? 68 : 52;
+  const isHero =
+    file.includes('hero') ||
+    file.includes('lifestyle') ||
+    file.includes('smooth-hair') ||
+    file.includes('bundle');
+
+  const maxEdge = isLogo ? 512 : isHero ? 1280 : 1100;
+  const quality = isLogo ? 78 : isHero ? 72 : 68;
 
   await sharp(input)
     .rotate()
@@ -49,9 +59,6 @@ for (const file of files) {
 }
 
 console.table(results);
-console.log(
-  'Wrote compressed files to public/images/_compressed — copy over originals next.',
-);
 console.log(
   'total before',
   results.reduce((s, r) => s + r.beforeKB, 0),
