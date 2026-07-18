@@ -77,13 +77,54 @@ export function WhatsAppAskLink({ productName }: { productName: string }) {
   );
 }
 
+export type ReviewVisual = {
+  image: string;
+  imageAlt: string;
+};
+
+/** Build 3 distinct visuals for a single product page (product-specific). */
+export function reviewVisualsForProduct(input: {
+  nameAr: string;
+  image?: string;
+  usageImage?: string;
+  accentImage?: string;
+}): ReviewVisual[] {
+  const productImg = input.image ?? '/images/oxiprime-shampoo-realistic.webp';
+  const usageImg = input.usageImage ?? productImg;
+  const accent =
+    input.accentImage ?? '/images/oxiprime-smooth-hair-result.webp';
+  return [
+    {
+      image: usageImg,
+      imageAlt: `استعمال ${input.nameAr}`,
+    },
+    {
+      image: productImg,
+      imageAlt: input.nameAr,
+    },
+    {
+      image: accent,
+      imageAlt: `نتيجة مع ${input.nameAr}`,
+    },
+  ];
+}
+
 export function ProductReviewsSection({
   title = 'شنو قالت الزبونات',
   subtitle = 'مدن مغربية · دفع عند الاستلام · تأكيد بالهاتف',
+  visuals,
 }: {
   title?: string;
   subtitle?: string;
+  /** Override images per card (keeps texts, changes photos). */
+  visuals?: ReviewVisual[];
 }) {
+  const cards = productReviews.map((review, i) => ({
+    ...review,
+    image: visuals?.[i]?.image ?? review.image,
+    imageAlt: visuals?.[i]?.imageAlt ?? review.imageAlt,
+  }));
+
   return (
     <section className="px-4 py-12 bg-ivory">
       <div className="container mx-auto max-w-5xl">
@@ -92,7 +133,7 @@ export function ProductReviewsSection({
           <p className="text-sm text-secondary leading-relaxed">{subtitle}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {productReviews.map((review) => (
+          {cards.map((review) => (
             <article
               key={review.name}
               className="rounded-card border border-champagne/30 bg-background overflow-hidden"
@@ -119,31 +160,47 @@ export function ProductReviewsSection({
           ))}
         </div>
         <p className="text-center text-[11px] text-muted-brown mt-4">
-          صور توضيحية لنتيجة/استعمال العناية · النتائج تختلف حسب نوع الشعر.
+          صور توضيحية للمنتج/الاستعمال · النتائج تختلف حسب نوع الشعر.
         </p>
       </div>
     </section>
   );
 }
 
-export function ResultPromiseSection() {
+export function ResultPromiseSection({
+  title = 'من شعر متعب… لنتيجة أوضح',
+  subtitle = 'الهدف بسيط: نعومة، تسريح أسهل، ولمعان مع الاستمرار — بلا وعود طبية.',
+  beforeSrc = '/images/oxiprime-hair-lifestyle-hero.webp',
+  afterSrc = '/images/oxiprime-smooth-hair-result.webp',
+  beforeAlt = 'شعر يحتاج روتين إصلاح وترطيب',
+  afterAlt = 'نتيجة شعر أنعم وأكثر لمعانا',
+  beforeCaption = 'قبل الروتين الكامل · جفاف / نفشة / تعب',
+  afterCaption = 'مع الاستمرار · نعومة ولمعان أوضح',
+}: {
+  title?: string;
+  subtitle?: string;
+  beforeSrc?: string;
+  afterSrc?: string;
+  beforeAlt?: string;
+  afterAlt?: string;
+  beforeCaption?: string;
+  afterCaption?: string;
+}) {
   return (
     <section className="px-4 py-12 bg-background">
       <div className="container mx-auto max-w-5xl">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold text-cocoa mb-3">
-            من شعر متعب… لنتيجة أوضح
+            {title}
           </h2>
-          <p className="text-sm text-secondary leading-relaxed">
-            الهدف بسيط: نعومة، تسريح أسهل، ولمعان مع الاستمرار — بلا وعود طبية.
-          </p>
+          <p className="text-sm text-secondary leading-relaxed">{subtitle}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <figure className="overflow-hidden rounded-card border border-champagne/30 bg-ivory">
             <div className="relative aspect-[16/11]">
               <Image
-                src="/images/oxiprime-hair-lifestyle-hero.webp"
-                alt="شعر يحتاج روتين إصلاح وترطيب"
+                src={beforeSrc}
+                alt={beforeAlt}
                 fill
                 sizes="(max-width: 640px) 100vw, 420px"
                 quality={62}
@@ -152,14 +209,14 @@ export function ResultPromiseSection() {
               />
             </div>
             <figcaption className="p-3 text-center text-xs font-bold text-muted-brown">
-              قبل الروتين الكامل · جفاف / نفشة / تعب
+              {beforeCaption}
             </figcaption>
           </figure>
           <figure className="overflow-hidden rounded-card border border-gold/40 bg-ivory shadow-card">
             <div className="relative aspect-[16/11]">
               <Image
-                src="/images/oxiprime-smooth-hair-result.webp"
-                alt="نتيجة شعر أنعم وأكثر لمعانا"
+                src={afterSrc}
+                alt={afterAlt}
                 fill
                 sizes="(max-width: 640px) 100vw, 420px"
                 quality={65}
@@ -168,7 +225,7 @@ export function ResultPromiseSection() {
               />
             </div>
             <figcaption className="p-3 text-center text-xs font-bold text-cocoa">
-              مع الاستمرار · نعومة ولمعان أوضح
+              {afterCaption}
             </figcaption>
           </figure>
         </div>

@@ -14,10 +14,19 @@ import {
   ProductReviewsSection,
   ResultPromiseSection,
   WhatsAppAskLink,
+  reviewVisualsForProduct,
 } from '@/components/product/ProductTrustBits';
 
 const bundleSaving =
   (bundleProduct.compareAtPrice ?? bundleProduct.price) - bundleProduct.price;
+
+/** Third review image unique per product — keeps pages from looking identical. */
+const accentBySlug: Record<string, string> = {
+  'repair-hair-shampoo': '/images/review-nadia.webp',
+  'repair-hair-conditioner': '/images/review-iman.webp',
+  'deep-conditioning-repair-mask': '/images/review-salma.webp',
+  'thermal-keratin-hair-serum': '/images/oxiprime-smooth-hair-result.webp',
+};
 
 export function SingleProductPage({
   product,
@@ -35,6 +44,14 @@ export function SingleProductPage({
   const forWhom = product.suitableFor?.[0];
   const promise = product.expectedResults?.[0] ?? product.benefits[0];
   const usageSteps = product.usageSteps ?? [product.howToUse];
+  const productImage = product.image ?? getListImage(product);
+  const usageImage = product.usageImage ?? productImage;
+  const reviewVisuals = reviewVisualsForProduct({
+    nameAr: product.nameAr,
+    image: productImage,
+    usageImage,
+    accentImage: accentBySlug[product.slug] ?? '/images/review-salma.webp',
+  });
 
   const productFaqs = [
     {
@@ -250,7 +267,16 @@ export function SingleProductPage({
       </section>
 
       <LazySection minHeight="420px">
-        <ResultPromiseSection />
+        <ResultPromiseSection
+          title={`${product.nameAr} · شنو كتشوفي`}
+          subtitle="صورة المنتج وطريقة الاستعمال — خاصة بهاد الخطوة، مشي نفس الصور ديال منتج آخر."
+          beforeSrc={productImage}
+          afterSrc={usageImage}
+          beforeAlt={product.nameAr}
+          afterAlt={`طريقة استعمال ${product.nameAr}`}
+          beforeCaption="المنتج"
+          afterCaption="فالاستعمال"
+        />
       </LazySection>
 
       {/* Pain + fit */}
@@ -305,42 +331,38 @@ export function SingleProductPage({
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
-              {product.usageImage && (
-                <figure className="overflow-hidden rounded-card border border-champagne/30 bg-ivory shadow-card">
-                  <div className="relative aspect-[16/11]">
-                    <Image
-                      src={product.usageImage}
-                      alt={`طريقة استعمال ${product.nameAr}`}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 480px"
-                      quality={60}
-                      loading="lazy"
-                      className="object-cover"
-                    />
-                  </div>
-                  <figcaption className="p-3 text-center text-xs font-bold text-muted-brown">
-                    طريقة الاستعمال
-                  </figcaption>
-                </figure>
-              )}
-              {product.resultImage && (
-                <figure className="overflow-hidden rounded-card border border-gold/40 bg-ivory shadow-card">
-                  <div className="relative aspect-[16/11]">
-                    <Image
-                      src={product.resultImage}
-                      alt="نتيجة شعر أنعم مع الاستمرار"
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 480px"
-                      quality={60}
-                      loading="lazy"
-                      className="object-cover"
-                    />
-                  </div>
-                  <figcaption className="p-3 text-center text-xs font-bold text-cocoa">
-                    مع الاستمرار · نعومة ولمعان أوضح
-                  </figcaption>
-                </figure>
-              )}
+              <figure className="overflow-hidden rounded-card border border-champagne/30 bg-ivory shadow-card">
+                <div className="relative aspect-[16/11]">
+                  <Image
+                    src={usageImage}
+                    alt={`طريقة استعمال ${product.nameAr}`}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 480px"
+                    quality={60}
+                    loading="lazy"
+                    className="object-cover"
+                  />
+                </div>
+                <figcaption className="p-3 text-center text-xs font-bold text-muted-brown">
+                  طريقة استعمال {product.stepLabel ?? product.nameAr}
+                </figcaption>
+              </figure>
+              <figure className="overflow-hidden rounded-card border border-gold/40 bg-ivory shadow-card">
+                <div className="relative aspect-[16/11]">
+                  <Image
+                    src={productImage}
+                    alt={product.nameAr}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 480px"
+                    quality={60}
+                    loading="lazy"
+                    className="object-cover"
+                  />
+                </div>
+                <figcaption className="p-3 text-center text-xs font-bold text-cocoa">
+                  {product.nameAr}
+                </figcaption>
+              </figure>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
@@ -403,7 +425,8 @@ export function SingleProductPage({
       <LazySection minHeight="280px">
         <ProductReviewsSection
           title="علاش العميلات كيطمّنو قبل ما يخلصو؟"
-          subtitle="الدفع عند الاستلام + التأكيد بالهاتف + روتين واضح"
+          subtitle="الدفع عند الاستلام + التأكيد بالهاتف + صور هاد المنتج"
+          visuals={reviewVisuals}
         />
       </LazySection>
 
