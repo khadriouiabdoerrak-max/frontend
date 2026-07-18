@@ -54,8 +54,8 @@ export default function Home() {
                 شعركِ تاجكِ — يستاهل روتين إصلاح كامل.
               </h1>
               <p className="text-sm sm:text-lg text-secondary max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                باك {brand.productLine} الواحد: شامبو + بلسم + ماسك + سيروم.
-                تنظيف، ترطيب، تغذية وحماية — بثمن أوضح ودفع عند الاستلام.
+                للشعر الجاف، المصبوغ والمنفوش: شامبو + بلسم + ماسك + سيروم فباك
+                واحد — نعومة وتسريح أسهل، وخلّصي عند الباب.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <AddToCartButton
@@ -72,7 +72,7 @@ export default function Home() {
                 </Link>
               </div>
               <p className="text-xs text-muted-brown">
-                دفع عند الاستلام | تأكيد هاتفي | توصيل داخل المغرب
+                ما كتخلصيش حتى توصلك · تأكيد بالهاتف · توصيل داخل المغرب
               </p>
             </div>
 

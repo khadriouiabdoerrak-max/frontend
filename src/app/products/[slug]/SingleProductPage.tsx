@@ -12,6 +12,7 @@ import {
   CodTrustList,
   CompactOrderFlow,
   ProductReviewsSection,
+  ResultPromiseSection,
   WhatsAppAskLink,
 } from '@/components/product/ProductTrustBits';
 
@@ -147,6 +148,10 @@ export function SingleProductPage({
       </section>
 
       <CompactOrderFlow />
+
+      <LazySection minHeight="420px">
+        <ResultPromiseSection />
+      </LazySection>
 
       <section className="px-4 py-10 bg-background">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-5">

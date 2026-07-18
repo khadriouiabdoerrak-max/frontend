@@ -5,6 +5,13 @@ import Image from 'next/image';
 import { AddToCartButton } from '@/components/cart/AddToCartButton';
 import { LazySection } from '@/components/home/LazySection';
 import { StarRating } from '@/components/home/StarRating';
+import {
+  CodTrustList,
+  CompactOrderFlow,
+  ProductReviewsSection,
+  ResultPromiseSection,
+  WhatsAppAskLink,
+} from '@/components/product/ProductTrustBits';
 import { products, bundleProduct } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
 
@@ -51,31 +58,11 @@ const routineSteps = [
   },
 ];
 
-const testimonials = [
-  {
-    name: 'س.م.',
-    city: 'الدار البيضاء',
-    text: 'شعري ولى أسهل فالتسريح وأكثر لمعانا بعد الروتين الكامل.',
-    image: '/images/oxiprime-smooth-hair-result.webp',
-  },
-  {
-    name: 'ف.ب.',
-    city: 'الرباط',
-    text: 'كنت كنشتري منتجات متفرقة، الباك وفرّ ليا الفلوس والوقت.',
-    image: '/images/oxiprime-hair-lifestyle-hero.webp',
-  },
-  {
-    name: 'ن.ح.',
-    city: 'مراكش',
-    text: 'النفشة نقصات واللمعان باين من أول أسبوع.',
-    image: '/images/oxiprime-complete-bundle-realistic.webp',
-  },
-];
-
 export function HomeBelowFold() {
   return (
     <>
-      {/* ─── BUNDLE OFFER ─── */}
+      <CompactOrderFlow />
+
       <LazySection minHeight="560px">
         <section className="py-14 px-4 sm:px-6 bg-ivory">
           <div className="container mx-auto max-w-5xl">
@@ -105,8 +92,8 @@ export function HomeBelowFold() {
                       {bundleProduct.nameAr}
                     </h2>
                     <p className="text-sm text-muted-brown mt-2 leading-relaxed">
-                      4 منتجات فباك واحد بترتيب واضح: تنظفي، ترطبي، تغذي،
-                      وتحمي — بلا ما تحتاري شنو تاخذي.
+                      للشعر الجاف، المصبوغ والمنفوش — 4 منتجات بترتيب واضح:
+                      تنظفي، ترطبي، تغذي، وتحمي.
                     </p>
                   </div>
 
@@ -122,18 +109,7 @@ export function HomeBelowFold() {
                     </span>
                   </div>
 
-                  <div className="space-y-2 text-sm text-secondary text-right">
-                    {[
-                      'روتين كامل مرتب من أول غسلة حتى اللمعان',
-                      'ثمن أفضل من شراء كل منتج بوحدو',
-                      'طلب بسيط: زر واحد + دفع عند الاستلام',
-                    ].map((point) => (
-                      <p key={point} className="flex items-start gap-2">
-                        <span className="text-gold font-bold shrink-0">✓</span>
-                        <span>{point}</span>
-                      </p>
-                    ))}
-                  </div>
+                  <CodTrustList />
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     <AddToCartButton
@@ -149,6 +125,7 @@ export function HomeBelowFold() {
                       شوفي التفاصيل
                     </Link>
                   </div>
+                  <WhatsAppAskLink productName={bundleProduct.nameAr} />
                 </div>
               </div>
             </div>
@@ -156,7 +133,6 @@ export function HomeBelowFold() {
         </section>
       </LazySection>
 
-      {/* ─── 4 STEPS ─── */}
       <section className="py-14 px-4 sm:px-6 bg-background">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center max-w-2xl mx-auto mb-10">
@@ -164,8 +140,8 @@ export function HomeBelowFold() {
               روتين إصلاح من 4 خطوات
             </h2>
             <p className="text-sm text-secondary leading-relaxed">
-              هاد الترتيب هو أساس تاجكِ: كل خطوة كتكمّل اللي قبلها. النتيجة أوضح
-              ملي كتستعملي الروتين كامل.
+              كل خطوة كتكمّل اللي قبلها. النتيجة أوضح ملي كتستعملي الروتين كامل
+              — وتقدري حتى تاخذي منتج بوحدو.
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -187,88 +163,27 @@ export function HomeBelowFold() {
         </div>
       </section>
 
-      {/* ─── RESULT + TESTIMONIALS ─── */}
-      <LazySection minHeight="520px">
-        <section className="py-14 px-4 sm:px-6 bg-ivory">
-          <div className="container mx-auto max-w-5xl">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-12">
-              <div className="relative aspect-[16/10] overflow-hidden rounded-card border border-champagne/30 shadow-card">
-                <Image
-                  src="/images/oxiprime-smooth-hair-result.webp"
-                  alt="نتيجة شعر ناعم ولامع مع روتين OXIPRIME"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 480px"
-                  quality={72}
-                  loading="lazy"
-                  className="object-cover"
-                />
-              </div>
-              <div className="text-center lg:text-right space-y-4">
-                <h2 className="text-2xl sm:text-3xl font-bold text-cocoa">
-                  النتيجة اللي كتقلبي عليها
-                </h2>
-                <p className="text-sm text-secondary leading-relaxed">
-                  نعومة أوضح، تسريح أسهل، ولمعان من غير مظهر دهني — ملي كتمشي
-                  مع الروتين بالترتيب.
-                </p>
-                <AddToCartButton
-                  product={bundleCartItem}
-                  className="bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn hover:bg-espresso transition-colors"
-                >
-                  أضيفي الروتين الكامل
-                </AddToCartButton>
-              </div>
-            </div>
-
-            <h3 className="text-xl font-bold text-cocoa text-center mb-6">
-              ماذا تقول العميلات
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {testimonials.map((review) => (
-                <div
-                  key={review.name}
-                  className="bg-background rounded-card border border-champagne/30 overflow-hidden"
-                >
-                  <div className="relative aspect-[16/10]">
-                    <Image
-                      src={review.image}
-                      alt={`تجربة ${review.name}`}
-                      fill
-                      sizes="(max-width: 640px) 92vw, 30vw"
-                      quality={60}
-                      loading="lazy"
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-5 space-y-3">
-                    <StarRating rating={5} />
-                    <p className="text-sm text-secondary leading-relaxed italic">
-                      &ldquo;{review.text}&rdquo;
-                    </p>
-                    <p className="text-xs text-muted-brown">
-                      {review.name} · {review.city}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <p className="text-center text-[11px] text-muted-brown mt-4">
-              نتائج أولية. قد تختلف حسب نوع الشعر وطريقة الاستعمال.
-            </p>
-          </div>
-        </section>
+      <LazySection minHeight="420px">
+        <ResultPromiseSection />
       </LazySection>
 
-      {/* ─── INDIVIDUAL PRODUCTS (secondary) ─── */}
+      <LazySection minHeight="280px">
+        <ProductReviewsSection
+          title="شنو قالت الزبونات"
+          subtitle="مدن مغربية · دفع عند الاستلام · تأكيد بالهاتف"
+        />
+      </LazySection>
+
       <LazySection minHeight="480px">
         <section className="py-14 px-4 sm:px-6 bg-background">
           <div className="container mx-auto max-w-5xl">
-            <div className="text-center mb-8">
+            <div className="text-center mb-8 space-y-2">
               <h2 className="text-2xl font-bold text-cocoa">
                 بغيتي منتج بوحدو؟
               </h2>
-              <p className="text-sm text-muted-brown mt-2">
-                متوفر فرديا — لكن أفضل نتيجة مع الروتين الكامل
+              <p className="text-sm text-muted-brown max-w-xl mx-auto leading-relaxed">
+                كل منتج عندو دور واضح. تقدري تبدئي بواحد — والنتيجة أوضح مع
+                الروتين الكامل.
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -292,15 +207,26 @@ export function HomeBelowFold() {
                     />
                   </Link>
                   <div className="p-4 flex flex-col gap-2 flex-1">
+                    {product.step && (
+                      <p className="text-[11px] font-bold text-gold">
+                        خطوة {product.step} · {product.stepLabel}
+                      </p>
+                    )}
                     <StarRating rating={product.rating} />
                     <Link href={`/products/${product.slug}`}>
                       <h3 className="font-bold text-sm text-cocoa leading-snug hover:text-gold transition-colors">
                         {product.nameAr}
                       </h3>
                     </Link>
-                    <div className="flex items-center justify-between mt-auto">
+                    <p className="text-xs text-muted-brown leading-relaxed line-clamp-2">
+                      {product.shortDescriptionAr}
+                    </p>
+                    <div className="flex items-center justify-between mt-auto pt-1">
                       <span className="font-bold text-sm text-cocoa">
                         {formatPrice(product.price)}
+                      </span>
+                      <span className="text-[10px] text-muted-brown">
+                        دفع عند الاستلام
                       </span>
                     </div>
                     <AddToCartButton
@@ -316,20 +242,33 @@ export function HomeBelowFold() {
                     >
                       أضيفي للسلة
                     </AddToCartButton>
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="block text-center text-[11px] font-bold text-cocoa underline underline-offset-2"
+                    >
+                      شوفي التفاصيل
+                    </Link>
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-8 text-center">
+              <Link
+                href={`/products/${bundleProduct.slug}`}
+                className="inline-block bg-cocoa text-ivory px-6 py-3 font-bold rounded-btn text-sm hover:bg-espresso transition-colors"
+              >
+                أفضل نتيجة: الروتين الكامل — {formatPrice(bundleProduct.price)}
+              </Link>
             </div>
           </div>
         </section>
       </LazySection>
 
-      {/* ─── QUIZ + GUIDES ─── */}
-      <section className="py-12 px-4 bg-background">
+      <section className="py-12 px-4 bg-ivory">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             href="/quiz"
-            className="rounded-card border border-champagne/40 bg-ivory p-6 hover:border-gold/50 transition-colors"
+            className="rounded-card border border-champagne/40 bg-background p-6 hover:border-gold/50 transition-colors"
           >
             <p className="text-xs font-bold text-gold mb-2">اختبار سريع</p>
             <h2 className="text-xl font-bold text-cocoa mb-2">
@@ -341,7 +280,7 @@ export function HomeBelowFold() {
           </Link>
           <Link
             href="/guides"
-            className="rounded-card border border-champagne/40 bg-ivory p-6 hover:border-gold/50 transition-colors"
+            className="rounded-card border border-champagne/40 bg-background p-6 hover:border-gold/50 transition-colors"
           >
             <p className="text-xs font-bold text-gold mb-2">دليل العناية</p>
             <h2 className="text-xl font-bold text-cocoa mb-2">
@@ -354,7 +293,6 @@ export function HomeBelowFold() {
         </div>
       </section>
 
-      {/* ─── FINAL CTA ─── */}
       <LazySection minHeight="200px">
         <section className="py-16 px-4 bg-cocoa text-ivory text-center">
           <div className="container mx-auto max-w-xl space-y-5">
@@ -363,8 +301,8 @@ export function HomeBelowFold() {
             </h2>
             <p className="text-sm text-champagne/80 leading-relaxed">
               شعركِ تاجكِ — الباك الكامل بـ {formatPrice(bundleProduct.price)}{' '}
-              بدل {formatPrice(bundleProduct.compareAtPrice!)} ودفع عند
-              الاستلام.
+              بدل {formatPrice(bundleProduct.compareAtPrice!)}. ما كتخلصيش حتى
+              توصلك الطلبية.
             </p>
             <AddToCartButton
               product={bundleCartItem}
@@ -372,6 +310,7 @@ export function HomeBelowFold() {
             >
               أضيفي الروتين الكامل — {formatPrice(bundleProduct.price)}
             </AddToCartButton>
+            <WhatsAppAskLink productName={bundleProduct.nameAr} />
             <Link
               href="/faq"
               className="block text-xs text-champagne/70 underline underline-offset-2"
@@ -381,7 +320,6 @@ export function HomeBelowFold() {
           </div>
         </section>
       </LazySection>
-
     </>
   );
 }

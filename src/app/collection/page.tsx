@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AddToCartButton } from '@/components/cart/AddToCartButton';
 import { StarRating } from '@/components/home/StarRating';
+import { CodTrustList, WhatsAppAskLink } from '@/components/product/ProductTrustBits';
 import { products, bundleProduct, getListImage } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
 
@@ -30,7 +31,8 @@ export default function CollectionPage() {
             روتين إصلاح الشعر الكامل
           </h1>
           <p className="text-secondary text-sm leading-relaxed">
-            اختيار تاجكِ الأول هو الباك الكامل — أو اختاري منتج بوحدو إذا بغيتي.
+            للشعر الجاف، المصبوغ والمنفوش — الباك الكامل أولاً، أو منتج بوحدو إذا
+            بغيتي تبدئي خطوة خطوة. خلّصي عند الباب.
           </p>
         </div>
       </section>
@@ -73,7 +75,7 @@ export default function CollectionPage() {
                   </h2>
                   <p className="text-sm text-secondary mt-3 leading-relaxed">
                     شامبو + بلسم + ماسك + سيروم فباك واحد. روتين مرتب، ثمن أوضح،
-                    ودفع عند الاستلام.
+                    وخلّصي عند الباب.
                   </p>
                 </div>
 
@@ -88,21 +90,7 @@ export default function CollectionPage() {
                   </span>
                 </div>
 
-                <ul className="space-y-2 text-sm text-secondary text-right">
-                  {[
-                    '4 منتجات روتين متكامل',
-                    'نتيجة أوضح من منتج بوحدو',
-                    'تأكيد بالهاتف · دفع عند الاستلام',
-                  ].map((point) => (
-                    <li
-                      key={point}
-                      className="flex items-start gap-2 justify-end lg:justify-start"
-                    >
-                      <span>{point}</span>
-                      <span className="text-success font-bold shrink-0">✓</span>
-                    </li>
-                  ))}
-                </ul>
+                <CodTrustList />
 
                 <div className="flex flex-col sm:flex-row gap-3">
                   <AddToCartButton
@@ -118,6 +106,7 @@ export default function CollectionPage() {
                     شوفي التفاصيل
                   </Link>
                 </div>
+                <WhatsAppAskLink productName={bundleProduct.nameAr} />
               </div>
             </div>
           </div>
@@ -127,14 +116,15 @@ export default function CollectionPage() {
       {/* Individual products */}
       <section className="px-4 pb-8">
         <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold text-cocoa">
-              أو اختاري منتج بوحدو
-            </h2>
-            <p className="text-sm text-muted-brown mt-2">
-              متوفر فردياً — النتيجة أوضح مع الروتين الكامل
-            </p>
-          </div>
+            <div className="text-center mb-8 space-y-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-cocoa">
+                أو اختاري منتج بوحدو
+              </h2>
+              <p className="text-sm text-muted-brown max-w-xl mx-auto leading-relaxed">
+                كل منتج خطوة فالعناية. شوفي لمن مناسب وشنو كيدير — والنتيجة أوضح
+                مع الروتين الكامل.
+              </p>
+            </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {products.map((product) => (
@@ -157,15 +147,28 @@ export default function CollectionPage() {
                   />
                 </Link>
                 <div className="p-4 flex flex-col gap-2 flex-1">
+                  {product.step && (
+                    <p className="text-[11px] font-bold text-gold">
+                      خطوة {product.step} · {product.stepLabel}
+                    </p>
+                  )}
                   <StarRating rating={product.rating} />
                   <Link href={`/products/${product.slug}`}>
                     <h3 className="font-bold text-sm text-cocoa leading-snug break-words hover:text-gold transition-colors">
                       {product.nameAr}
                     </h3>
                   </Link>
-                  <span className="font-bold text-sm text-cocoa">
-                    {formatPrice(product.price)}
-                  </span>
+                  <p className="text-xs text-muted-brown leading-relaxed line-clamp-2">
+                    {product.shortDescriptionAr}
+                  </p>
+                  <div className="flex items-center justify-between mt-auto pt-1">
+                    <span className="font-bold text-sm text-cocoa">
+                      {formatPrice(product.price)}
+                    </span>
+                    <span className="text-[10px] text-muted-brown">
+                      دفع عند الاستلام
+                    </span>
+                  </div>
                   <AddToCartButton
                     product={{
                       id: product.id,
@@ -175,10 +178,16 @@ export default function CollectionPage() {
                       image: getListImage(product),
                       isBundle: false,
                     }}
-                    className="w-full bg-cocoa text-ivory py-2.5 text-xs font-bold rounded-btn mt-auto"
+                    className="w-full bg-cocoa text-ivory py-2.5 text-xs font-bold rounded-btn"
                   >
                     أضيفي للسلة
                   </AddToCartButton>
+                  <Link
+                    href={`/products/${product.slug}`}
+                    className="block text-center text-[11px] font-bold text-cocoa underline underline-offset-2"
+                  >
+                    شوفي التفاصيل
+                  </Link>
                 </div>
               </div>
             ))}
