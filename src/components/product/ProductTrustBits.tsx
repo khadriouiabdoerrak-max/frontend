@@ -7,16 +7,22 @@ export const productReviews = [
     name: 'سلمى — الدار البيضاء',
     text: 'من بعد أسابيع الشعر ولى ناعم بزاف والتسريح سهّل. الباك كامل يستاهل.',
     rating: 5,
+    image: '/images/review-salma.webp',
+    imageAlt: 'نتيجة شعر أنعم بعد روتين العناية',
   },
   {
     name: 'إيمان — مراكش',
     text: 'الدفع عند الاستلام ريحني. وصل في أيام قليلة والمنتجات واضحة فالصور.',
     rating: 5,
+    image: '/images/review-iman.webp',
+    imageAlt: 'شعر بعد عناية وترطيب منتظم',
   },
   {
     name: 'نادية — طنجة',
     text: 'شعري كان جاف من الصباغة. الماسك والسيروم بداو الفرق من أول استعمالات.',
     rating: 4.8,
+    image: '/images/review-nadia.webp',
+    imageAlt: 'استعمال روتين العناية خطوة بخطوة',
   },
 ];
 
@@ -89,18 +95,31 @@ export function ProductReviewsSection({
           {productReviews.map((review) => (
             <article
               key={review.name}
-              className="rounded-card border border-champagne/30 bg-background p-5 space-y-3"
+              className="rounded-card border border-champagne/30 bg-background overflow-hidden"
             >
-              <StarRating rating={review.rating} />
-              <p className="text-sm text-secondary leading-relaxed">
-                &ldquo;{review.text}&rdquo;
-              </p>
-              <p className="text-xs font-bold text-cocoa">{review.name}</p>
+              <div className="relative aspect-[16/10] bg-champagne/20">
+                <Image
+                  src={review.image}
+                  alt={review.imageAlt}
+                  fill
+                  sizes="(max-width: 640px) 92vw, 300px"
+                  quality={60}
+                  loading="lazy"
+                  className="object-cover"
+                />
+              </div>
+              <div className="p-4 space-y-2.5">
+                <StarRating rating={review.rating} />
+                <p className="text-sm text-secondary leading-relaxed">
+                  &ldquo;{review.text}&rdquo;
+                </p>
+                <p className="text-xs font-bold text-cocoa">{review.name}</p>
+              </div>
             </article>
           ))}
         </div>
         <p className="text-center text-[11px] text-muted-brown mt-4">
-          النتائج تختلف حسب نوع الشعر وطريقة الاستعمال.
+          صور توضيحية لنتيجة/استعمال العناية · النتائج تختلف حسب نوع الشعر.
         </p>
       </div>
     </section>
@@ -126,8 +145,8 @@ export function ResultPromiseSection() {
                 src="/images/oxiprime-hair-lifestyle-hero.webp"
                 alt="شعر يحتاج روتين إصلاح وترطيب"
                 fill
-                sizes="(max-width: 640px) 100vw, 480px"
-                quality={70}
+                sizes="(max-width: 640px) 100vw, 420px"
+                quality={62}
                 loading="lazy"
                 className="object-cover"
               />
@@ -142,8 +161,8 @@ export function ResultPromiseSection() {
                 src="/images/oxiprime-smooth-hair-result.webp"
                 alt="نتيجة شعر أنعم وأكثر لمعانا"
                 fill
-                sizes="(max-width: 640px) 100vw, 480px"
-                quality={75}
+                sizes="(max-width: 640px) 100vw, 420px"
+                quality={65}
                 loading="lazy"
                 className="object-cover"
               />
