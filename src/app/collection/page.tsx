@@ -46,7 +46,7 @@ export default function CollectionPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2">
               <Link
                 href={`/products/${bundleProduct.slug}`}
-                className="relative block aspect-[4/5] lg:aspect-auto lg:min-h-[420px] bg-gradient-to-b from-[#E4EDE8] to-champagne/20"
+                className="relative block aspect-[4/5] lg:aspect-auto lg:min-h-[420px] bg-gradient-to-b from-[#EFE6D6] to-champagne/20"
                 aria-label={bundleProduct.nameAr}
               >
                 <Image

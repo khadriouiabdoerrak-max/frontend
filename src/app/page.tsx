@@ -42,8 +42,8 @@ const trustChips = [
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#E4EDE8] via-[#EEF2EF] to-background">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(26,107,88,0.12),_transparent_55%)]" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#EFE6D6] via-[#F5F0E6] to-background">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(154,123,79,0.14),_transparent_55%)]" />
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 pt-10 pb-12 sm:pt-14 sm:pb-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-5 text-center lg:text-right order-2 lg:order-1">

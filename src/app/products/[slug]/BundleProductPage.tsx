@@ -168,7 +168,7 @@ export function BundleProductPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
-      <section className="px-4 py-8 sm:py-12 bg-gradient-to-b from-[#E4EDE8] to-background">
+      <section className="px-4 py-8 sm:py-12 bg-gradient-to-b from-[#EFE6D6] to-background">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="relative overflow-hidden rounded-card border border-champagne/40 shadow-card aspect-[4/5] bg-gradient-to-b from-background to-champagne/20">
             <Image

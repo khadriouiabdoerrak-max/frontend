@@ -9,20 +9,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        /* Crown Jade system — prestige botanical, not cream-gold beauty default */
-        background: "#F2F0EC",
-        ivory: "#FAF9F7",
-        champagne: "#B8C5BE",
-        gold: "#1A6B58",
-        cocoa: "#14241F",
-        espresso: "#0C1612",
-        "muted-brown": "#5A6B63",
-        success: "#1F7A4D",
+        /* Salon Warmth — matches OXIPRIME cream + gold packaging; calm trust */
+        background: "#F6F1E8",
+        ivory: "#FFFBF5",
+        champagne: "#D4C4A8",
+        gold: "#9A7B4F",
+        cocoa: "#2C241C",
+        espresso: "#1A1510",
+        "muted-brown": "#6E6256",
+        success: "#3D6B4F",
         error: "#B42318",
-        surface: "#FAF9F7",
-        primary: "#0C1612",
-        secondary: "#5A6B63",
-        accent: "#1A6B58",
+        surface: "#FFFBF5",
+        primary: "#1A1510",
+        secondary: "#6E6256",
+        accent: "#9A7B4F",
       },
       fontFamily: {
         sans: ["var(--font-ibm-plex-arabic)", "sans-serif"],
@@ -34,8 +34,8 @@ const config: Config = {
         btn: "12px",
       },
       boxShadow: {
-        card: "0 2px 14px 0 rgba(20,36,31,0.07)",
-        modal: "0 8px 40px 0 rgba(20,36,31,0.16)",
+        card: "0 2px 14px 0 rgba(44,36,28,0.07)",
+        modal: "0 8px 40px 0 rgba(44,36,28,0.16)",
       },
     },
   },

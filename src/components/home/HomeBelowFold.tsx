@@ -368,7 +368,7 @@ export function HomeBelowFold() {
             </p>
             <AddToCartButton
               product={bundleCartItem}
-              className="bg-gold text-ivory px-8 py-4 font-bold rounded-btn hover:bg-gold/90 transition-colors"
+              className="bg-gold text-ivory px-8 py-4 font-bold rounded-btn hover:bg-[#8A6D45] transition-colors"
             >
               أضيفي الروتين الكامل — {formatPrice(bundleProduct.price)}
             </AddToCartButton>

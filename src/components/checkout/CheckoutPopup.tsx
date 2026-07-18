@@ -207,7 +207,7 @@ export function CheckoutPopup() {
             <div className="bg-background rounded-card p-4 border border-champagne/30 space-y-3">
               {items.map((item) => (
                 <div key={item.id} className="flex items-center gap-3">
-                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-btn bg-[#E4EDE8] border border-champagne/30">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-btn bg-[#EFE6D6] border border-champagne/30">
                     <Image
                       src={itemImage(item.slug, item.image)}
                       alt={item.nameAr}

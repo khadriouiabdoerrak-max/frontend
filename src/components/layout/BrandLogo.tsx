@@ -3,10 +3,10 @@ type BrandLogoProps = {
   variant?: 'nav' | 'footer';
 };
 
-/** Crown Jade leaf mark — sharp at any size. */
+/** Warm packaging mark — cream + antique gold, matches OXIPRIME bottles. */
 export function BrandLogo({ className = '', variant = 'nav' }: BrandLogoProps) {
-  const bg = variant === 'footer' ? '#2A8F76' : '#1A6B58';
-  const ink = '#FAF9F7';
+  const bg = variant === 'footer' ? '#C4A574' : '#D4C4A8';
+  const ink = '#2C241C';
 
   return (
     <svg
