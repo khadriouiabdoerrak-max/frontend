@@ -163,7 +163,7 @@ function ProductImage({ product }: { product: Product }) {
         alt={product.nameAr}
         fill
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 520px"
-        quality={65}
+        quality={75}
         className="object-cover"
         priority
       />
@@ -322,7 +322,7 @@ export function SingleProductPage({
                     alt={`طريقة استعمال ${product.nameAr}`}
                     fill
                     sizes="(max-width: 1024px) 100vw, 480px"
-                    quality={50}
+                    quality={60}
                     loading="lazy"
                     className="object-cover"
                   />
@@ -357,7 +357,7 @@ export function SingleProductPage({
                     alt="نتيجة شعر ناعم ولامع"
                     fill
                     sizes="(max-width: 1024px) 100vw, 480px"
-                    quality={50}
+                    quality={60}
                     loading="lazy"
                     className="object-cover"
                   />
@@ -518,7 +518,7 @@ export function SingleProductPage({
                       alt={item.nameAr}
                       fill
                       sizes="(max-width: 640px) 92vw, 30vw"
-                      quality={65}
+                      quality={75}
                       loading="lazy"
                       className="object-cover md:transition-transform md:duration-300 md:group-hover:scale-105"
                     />

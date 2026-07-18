@@ -176,7 +176,7 @@ export function BundleProductPage({
               alt="باك OXIPRIME الكامل: شامبو، بلسم، ماسك وسيروم"
               fill
               priority
-              quality={65}
+              quality={75}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 520px"
               className="object-cover"
             />
@@ -443,7 +443,7 @@ export function BundleProductPage({
                       alt={visual.label}
                       fill
                       sizes="(max-width: 640px) 45vw, 220px"
-                      quality={50}
+                      quality={60}
                       loading="lazy"
                       className="object-cover"
                     />
@@ -486,7 +486,7 @@ export function BundleProductPage({
               alt="نتيجة شعر ناعم ولامع مع روتين OXIPRIME"
               fill
               sizes="(max-width: 1024px) 100vw, 480px"
-              quality={65}
+              quality={75}
               loading="lazy"
               className="object-cover"
             />

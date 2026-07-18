@@ -54,7 +54,7 @@ export default function CollectionPage() {
                   alt="باك OXIPRIME الكامل: شامبو، بلسم، ماسك وسيروم"
                   fill
                   priority
-                  quality={60}
+                  quality={72}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 520px"
                   className="object-cover"
                 />
@@ -151,7 +151,7 @@ export default function CollectionPage() {
                     alt={product.nameAr}
                     fill
                     sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 240px"
-                    quality={60}
+                    quality={72}
                     loading="lazy"
                     className="object-cover"
                   />

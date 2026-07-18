@@ -5,11 +5,11 @@ const nextConfig = {
   compress: true,
   images: {
     formats: ['image/avif', 'image/webp'],
-    // Balance: sharp on phones, avoid huge desktop variants
-    deviceSizes: [320, 360, 414, 640, 750, 828],
+    // Sharp on phones, still capped for weight
+    deviceSizes: [320, 360, 414, 640, 750, 828, 1080],
     imageSizes: [48, 64, 96, 128, 256],
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    qualities: [50, 55, 60, 65, 70],
+    qualities: [60, 65, 70, 72, 75, 78],
     remotePatterns: [
       {
         protocol: 'https',
