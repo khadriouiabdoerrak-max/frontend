@@ -68,14 +68,18 @@ export function Navbar() {
       >
         <div className="container mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
           {/* Logo / Brand */}
-          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 shrink-0 group">
-            <BrandLogo className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 transition-transform group-hover:scale-[1.03]" />
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 sm:gap-3 shrink-0 group"
+            aria-label="تاجكِ — الصفحة الرئيسية"
+          >
+            <BrandLogo className="transition-transform group-hover:scale-[1.03] shadow-sm ring-1 ring-champagne/50" />
             <div className="flex flex-col leading-none gap-0.5">
               <span className="text-xl sm:text-2xl font-bold text-cocoa leading-tight">
                 تاجكِ
               </span>
               <span className="text-[10px] sm:text-[11px] text-gold font-medium tracking-wide">
-                روتين إصلاح كامل
+                OXIPRIME
               </span>
             </div>
           </Link>
