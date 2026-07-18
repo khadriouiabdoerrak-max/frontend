@@ -12,6 +12,10 @@ export default function PrivacyPage() {
           سياسة الخصوصية
         </h1>
         <div className="bg-ivory rounded-card border border-champagne/30 p-8 space-y-6 text-sm text-secondary leading-loose">
+          <p>
+            تاجكِ تحترم خصوصيتكِ. البيانات اللي كنطلبوها كتخدم فقط لتأكيد
+            وتوصيل طلبكِ — مشي للإعلان العشوائي.
+          </p>
           <section>
             <h2 className="font-bold text-cocoa mb-2">1. البيانات التي نجمعها</h2>
             <p>

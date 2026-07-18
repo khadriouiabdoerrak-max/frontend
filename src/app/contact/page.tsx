@@ -45,12 +45,15 @@ export default function ContactPage() {
       <div className="container mx-auto px-6 max-w-4xl">
         {/* Title */}
         <div className="text-center mb-12">
+          <p className="text-xs font-bold tracking-wide text-gold mb-2">
+            تاجكِ
+          </p>
           <h1 className="text-3xl sm:text-4xl font-bold text-cocoa mb-3">
             تواصلي معنا
           </h1>
           <p className="text-secondary text-sm max-w-md mx-auto leading-relaxed">
-            لديكِ سؤال حول المنتج المناسب لشعركِ؟ أو تريدين تأكيد طلبكِ؟
-            فريق تاجكِ رهن إشارتكِ.
+            سؤال حول الروتين المناسب؟ أو تأكيد طلب؟ فريق تاجكِ هنا باش يجاوبكِ
+            بوضوح — قبل الشراء وبعدو.
           </p>
         </div>
 

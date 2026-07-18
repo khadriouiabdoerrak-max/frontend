@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { AddToCartButton } from '@/components/cart/AddToCartButton';
+import { brand } from '@/lib/brand';
 import { bundleProduct } from '@/lib/products';
 import { formatPrice } from '@/lib/utils';
 
@@ -41,20 +42,20 @@ const trustChips = [
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#EFE5D6] via-[#F7F0E7] to-background">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(212,181,106,0.18),_transparent_55%)]" />
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#E4EDE8] via-[#EEF2EF] to-background">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(26,107,88,0.12),_transparent_55%)]" />
         <div className="container relative mx-auto max-w-6xl px-4 sm:px-6 pt-10 pb-12 sm:pt-14 sm:pb-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="space-y-5 text-center lg:text-right order-2 lg:order-1">
-              <p className="inline-block rounded-badge bg-gold/15 px-3 py-1 text-xs font-bold text-gold">
-                تاجكِ · روتين OXIPRIME الكامل
+              <p className="text-xs font-bold tracking-wide text-gold">
+                {brand.name} · {brand.tagline}
               </p>
-              <h1 className="text-3xl sm:text-5xl font-bold text-cocoa leading-tight">
-                شعرك يستاهل روتين كامل… مشي غير شامبو.
+              <h1 className="text-3xl sm:text-5xl font-bold text-cocoa leading-tight animate-fade-up">
+                شعركِ تاجكِ — يستاهل روتين إصلاح كامل.
               </h1>
               <p className="text-sm sm:text-lg text-secondary max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                باك واحد: شامبو + بلسم + ماسك + سيروم. تنظيف، ترطيب، تغذية
-                وحماية — بثمن أفضل ودفع عند الاستلام.
+                باك {brand.productLine} الواحد: شامبو + بلسم + ماسك + سيروم.
+                تنظيف، ترطيب، تغذية وحماية — بثمن أوضح ودفع عند الاستلام.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
                 <AddToCartButton
@@ -77,16 +78,16 @@ export default function Home() {
 
             <Link
               href={`/products/${bundleProduct.slug}`}
-              className="group relative block overflow-hidden rounded-card border border-champagne/40 bg-ivory shadow-card order-1 lg:order-2"
-              aria-label="شوفي روتين OXIPRIME الكامل"
+              className="group relative block overflow-hidden rounded-card border border-champagne/40 bg-ivory shadow-card order-1 lg:order-2 animate-fade-in"
+              aria-label={`شوفي روتين ${brand.productLine} الكامل`}
             >
               <div className="relative aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5] w-full">
                 <Image
                   src="/images/oxiprime-hair-lifestyle-hero.webp"
-                  alt="شعر ناعم ولامع مع روتين OXIPRIME"
+                  alt={`شعر ناعم ولامع مع روتين ${brand.productLine}`}
                   fill
                   priority
-                  quality={65}
+                  quality={60}
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 520px"
                   className="object-cover md:transition-transform md:duration-700 md:group-hover:scale-105"
                 />
@@ -118,8 +119,8 @@ export default function Home() {
             هل فقد شعركِ نعومته ولمعانه؟
           </h2>
           <p className="text-secondary text-sm sm:text-base leading-relaxed">
-            الصباغة، السشوار والماء القاسي كيخليو الشعر جاف وباهت. الحل ماشي
-            منتج واحد — خاصك روتين كامل.
+            الصباغة، السشوار والماء العسر كيخليو الشعر جاف وباهت. الحل ماشي
+            منتج واحد — خاصك روتين إصلاح كامل من {brand.name}.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             {['جفاف وتقصف', 'نفشة وصعوبة التسريح', 'لمعان ضعيف'].map((item) => (

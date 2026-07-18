@@ -50,7 +50,7 @@ const bundleFaqs = [
   {
     title: 'واش المنتجات أصلية؟ علاش نثق؟',
     content:
-      'كنعرضو صور ومعلومات واضحة، وكنأكدو الطلب بالهاتف قبل الإرسال. كتخلصي غير عند الاستلام — يعني كتشوفي الطلبية قبل ما تخلصي.',
+      'تاجكِ دار مغربية متخصصة فروتين OXIPRIME الكامل: صور ومعلومات واضحة، تأكيد بالهاتف قبل الإرسال، ودفع عند الاستلام — كتشوفي الطلبية قبل ما تخلصي.',
   },
   {
     title: 'شحال غادي يدوم الباك؟',
@@ -168,7 +168,7 @@ export function BundleProductPage({
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
-      <section className="px-4 py-8 sm:py-12 bg-gradient-to-b from-[#EFE5D6] to-background">
+      <section className="px-4 py-8 sm:py-12 bg-gradient-to-b from-[#E4EDE8] to-background">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="relative overflow-hidden rounded-card border border-champagne/40 shadow-card aspect-[4/5] bg-gradient-to-b from-background to-champagne/20">
             <Image
@@ -181,7 +181,7 @@ export function BundleProductPage({
               className="object-cover"
             />
             <div className="absolute right-3 top-3 rounded-full bg-cocoa px-3 py-1.5 text-xs font-bold text-ivory">
-              الأكثر طلبا
+              اختيار تاجكِ
             </div>
             <div className="absolute left-3 top-3 rounded-full bg-success text-ivory px-3 py-1.5 text-xs font-bold">
               توفري {bundleSaving} درهم
@@ -190,7 +190,7 @@ export function BundleProductPage({
 
           <div className="space-y-5 text-center lg:text-right lg:sticky lg:top-24 min-w-0 w-full">
             <span className="inline-block bg-gold/15 text-gold text-xs font-bold px-3 py-1 rounded-badge">
-              العرض الأفضل للزبونة اللي باغية نتيجة واضحة
+              تاجكِ · الدار المغربية لروتين الإصلاح الكامل
             </span>
             <div className="min-w-0 px-1">
               <h1 className="text-2xl sm:text-4xl font-bold text-cocoa leading-snug break-words">

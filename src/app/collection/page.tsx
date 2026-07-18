@@ -23,11 +23,14 @@ export default function CollectionPage() {
     <div className="bg-background pb-24">
       <section className="px-4 pt-10 pb-6 sm:pt-14">
         <div className="container mx-auto max-w-2xl text-center">
+          <p className="text-xs font-bold tracking-wide text-gold mb-2">
+            تاجكِ · مجموعة OXIPRIME
+          </p>
           <h1 className="text-3xl sm:text-4xl font-bold text-cocoa mb-3">
-            مجموعة OXIPRIME
+            روتين إصلاح الشعر الكامل
           </h1>
           <p className="text-secondary text-sm leading-relaxed">
-            الروتين الكامل هو الاختيار الأفضل — أو اختاري منتج بوحدو.
+            اختيار تاجكِ الأول هو الباك الكامل — أو اختاري منتج بوحدو إذا بغيتي.
           </p>
         </div>
       </section>
@@ -37,13 +40,13 @@ export default function CollectionPage() {
         <div className="container mx-auto max-w-5xl">
           <div className="overflow-hidden rounded-card border border-gold/40 bg-ivory shadow-card">
             <div className="bg-cocoa text-ivory text-center py-2.5 px-4 text-sm font-bold">
-              الأكثر طلباً — باك OXIPRIME الكامل · توفري {saving} درهم
+              اختيار تاجكِ — باك OXIPRIME الكامل · توفري {saving} درهم
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2">
               <Link
                 href={`/products/${bundleProduct.slug}`}
-                className="relative block aspect-[4/5] lg:aspect-auto lg:min-h-[420px] bg-gradient-to-b from-[#F4EBE0] to-champagne/20"
+                className="relative block aspect-[4/5] lg:aspect-auto lg:min-h-[420px] bg-gradient-to-b from-[#E4EDE8] to-champagne/20"
                 aria-label={bundleProduct.nameAr}
               >
                 <Image

@@ -8,7 +8,7 @@ import { ThankYouCleanup } from '@/components/checkout/ThankYouCleanup';
 export const metadata: Metadata = {
   title: 'تم استلام طلبكِ | تاجكِ',
   description:
-    'تم استلام طلبكِ بنجاح. سيتواصل معكِ فريق تاجكِ لتأكيد الطلب قبل الإرسال.',
+    'تم استلام طلبكِ بنجاح. فريق تاجكِ غادي يأكّد معاكِ الطلب قبل الإرسال.',
 };
 
 type PageProps = {
@@ -35,8 +35,9 @@ export default async function ThankYouPage({ params }: PageProps) {
         </h1>
 
         <p className="text-secondary leading-relaxed text-sm">
-          شكرا لثقتكِ في تاجكِ. طلبكِ قيد التأكيد، وسيتواصل معكِ فريقنا عبر
-          الهاتف لتأكيد العنوان والمنتجات قبل الإرسال.
+          شكراً لثقتكِ في تاجكِ — الدار المغربية لروتين إصلاح الشعر. طلبكِ قيد
+          التأكيد، وسيتواصل معكِ فريقنا عبر الهاتف لتأكيد العنوان والمنتجات قبل
+          الإرسال.
         </p>
 
         <div className="bg-ivory rounded-card border border-champagne/30 p-5 inline-block w-full">

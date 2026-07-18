@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandLogo } from '@/components/layout/BrandLogo';
+import { brand } from '@/lib/brand';
 import { getWhatsAppHref, siteConfig } from '@/lib/site';
 
 export function Footer() {
@@ -11,15 +12,14 @@ export function Footer() {
             <div className="flex items-center gap-3 mb-3">
               <BrandLogo variant="footer" className="w-11 h-11 shrink-0" />
               <div>
-                <p className="text-xl font-bold leading-tight">تاجكِ</p>
+                <p className="text-xl font-bold leading-tight">{brand.name}</p>
                 <p className="text-[10px] text-champagne/80 tracking-[0.18em] uppercase font-sans">
-                  OXIPRIME
+                  {brand.productLine}
                 </p>
               </div>
             </div>
             <p className="text-champagne/70 text-sm leading-relaxed mb-3">
-              متجر مغربي لمنتجات OXIPRIME. دفع عند الاستلام · تأكيد بالهاتف ·
-              توصيل لجميع المدن.
+              {brand.footerBlurb}
             </p>
             <div className="flex flex-wrap gap-3 text-xs">
               {siteConfig.instagramUrl && (
@@ -43,7 +43,7 @@ export function Footer() {
                 </a>
               )}
               <a
-                href={getWhatsAppHref('السلام عليكم من تاجكِ')}
+                href={getWhatsAppHref(`السلام عليكم من ${brand.name}`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-champagne hover:text-ivory"
@@ -108,13 +108,13 @@ export function Footer() {
                 {siteConfig.phoneDisplay}
               </li>
               <li>✉️ {siteConfig.email}</li>
-              <li>🇲🇦 المغرب · دفع عند الاستلام</li>
+              <li>المغرب · دفع عند الاستلام</li>
             </ul>
           </div>
         </div>
 
         <p className="text-center text-xs text-champagne/50 border-t border-white/10 pt-6">
-          © {new Date().getFullYear()} تاجكِ · oxiprime.store
+          © {new Date().getFullYear()} {brand.name} · oxiprime.store
         </p>
       </div>
     </footer>

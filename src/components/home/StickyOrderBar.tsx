@@ -39,11 +39,11 @@ export function StickyOrderBar() {
   };
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 border-t border-champagne/50 bg-ivory px-3 py-2.5 pe-[4.5rem] sm:pe-4 shadow-[0_-4px_20px_rgba(58,36,24,0.12)]">
+    <div className="fixed bottom-0 inset-x-0 z-40 border-t border-champagne/50 bg-ivory/95 backdrop-blur-sm px-3 py-2.5 pe-[4.5rem] sm:pe-4 shadow-[0_-2px_12px_rgba(20,36,31,0.08)]">
       <div className="mx-auto flex max-w-5xl items-center gap-3">
         <div className="min-w-0 flex-1 text-right">
           <p className="text-[11px] text-muted-brown truncate">
-            روتين OXIPRIME الكامل · دفع عند الاستلام
+            تاجكِ · روتين OXIPRIME الكامل · دفع عند الاستلام
           </p>
           <p className="font-bold text-cocoa text-sm sm:text-base">
             {formatPrice(bundleProduct.price)}

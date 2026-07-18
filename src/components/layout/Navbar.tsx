@@ -74,8 +74,8 @@ export function Navbar() {
               <span className="text-xl sm:text-2xl font-bold text-cocoa leading-tight">
                 تاجكِ
               </span>
-              <span className="text-[10px] sm:text-[11px] text-muted-brown font-sans tracking-[0.18em] uppercase">
-                OXIPRIME
+              <span className="text-[10px] sm:text-[11px] text-gold font-medium tracking-wide">
+                روتين إصلاح كامل
               </span>
             </div>
           </Link>

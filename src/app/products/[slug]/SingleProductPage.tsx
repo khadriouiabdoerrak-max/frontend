@@ -210,7 +210,7 @@ export function SingleProductPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <section className="px-3 sm:px-4 py-6 sm:py-10 bg-gradient-to-b from-[#EFE5D6] to-background">
+      <section className="px-3 sm:px-4 py-6 sm:py-10 bg-gradient-to-b from-[#E4EDE8] to-background">
         <div className="container mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 lg:gap-10 items-start">
           <div className="w-full lg:sticky lg:top-20">
             <ProductImage product={product} />

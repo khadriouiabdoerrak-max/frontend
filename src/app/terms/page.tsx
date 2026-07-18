@@ -15,8 +15,8 @@ export default function TermsPage() {
           <section>
             <h2 className="font-bold text-cocoa mb-2">1. الموقع والخدمة</h2>
             <p>
-              هذا الموقع مملوك لمتجر تاجكِ (oxiprime.store). باستخدام الموقع،
-              توافقين على هذه الشروط.
+              هذا الموقع مملوك لـ تاجكِ — الدار المغربية لروتين OXIPRIME الكامل
+              (oxiprime.store). باستخدام الموقع، توافقين على هذه الشروط.
             </p>
           </section>
           <section>

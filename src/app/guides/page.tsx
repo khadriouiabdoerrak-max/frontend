@@ -5,7 +5,7 @@ import { guides } from '@/lib/guides';
 export const metadata: Metadata = {
   title: 'دليل العناية بالشعر | تاجكِ',
   description:
-    'مقالات عملية بالعربية حول الشعر الجاف فالمغرب، الروتين بعد الصباغة، وكيفاش تستعملي OXIPRIME.',
+    'دليل تاجكِ العملي: الشعر الجاف فالمغرب، الروتين بعد الصباغة، وكيفاش تستعملي OXIPRIME.',
 };
 
 export default function GuidesIndexPage() {
@@ -13,11 +13,12 @@ export default function GuidesIndexPage() {
     <div className="min-h-screen bg-background px-4 py-12">
       <div className="container mx-auto max-w-3xl">
         <div className="text-center mb-10 space-y-2">
+          <p className="text-xs font-bold tracking-wide text-gold">تاجكِ</p>
           <h1 className="text-3xl sm:text-4xl font-bold text-cocoa">
             دليل العناية بالشعر
           </h1>
           <p className="text-sm text-secondary">
-            نصائح واضحة للزبونة المغربية — بلا تعقيد.
+            نصائح واضحة من الدار المغربية لروتين الإصلاح — بلا تعقيد.
           </p>
         </div>
         <div className="space-y-4">

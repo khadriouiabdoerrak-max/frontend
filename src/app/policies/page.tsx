@@ -10,7 +10,7 @@ export default function PoliciesPage() {
           <section>
             <h2 className="text-2xl font-bold mb-6 text-primary">سياسة الشحن والتوصيل</h2>
             <p className="mb-4">
-              نحن في OXIPRIME لا نرسل أي طلب مباشرة بعد ملء الاستمارة. كل طلب يمر أولاً بمرحلة تأكيد هاتفية أو عبر واتساب لضمان صحة المعلومات وتفادي إرجاع الشحنة.
+              نحن في تاجكِ لا نرسل أي طلب مباشرة بعد ملء الاستمارة. كل طلب يمر أولاً بمرحلة تأكيد هاتفية أو عبر واتساب لضمان صحة المعلومات وتفادي إرجاع الشحنة.
             </p>
             <ul className="list-disc list-inside space-y-2 pe-4">
               <li><strong>حالة الطلب الأولى:</strong> في انتظار التأكيد.</li>

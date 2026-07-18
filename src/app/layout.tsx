@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import "./globals.css";
+import { brand } from "@/lib/brand";
 import { arabicFont } from "@/lib/fonts";
 import { CartProvider } from '@/components/cart/CartProvider';
 import { Navbar } from '@/components/layout/Navbar';
@@ -20,30 +21,27 @@ export const metadata: Metadata = {
   other: {
     "oxiprime-build": process.env.NEXT_PUBLIC_BUILD_ID ?? "ops-login-v1",
   },
-  title: "تاجكِ | روتين OXIPRIME الاحترافي للعناية بالشعر",
-  description:
-    "تاجكِ — متجر مغربي متخصص في منتجات OXIPRIME للعناية الاحترافية بالشعر. شامبو، بلسم، ماسك وسيروم كيراتين. دفع عند الاستلام داخل المغرب.",
+  title: brand.metaTitle,
+  description: brand.metaDescription,
   openGraph: {
-    title: "تاجكِ | روتين OXIPRIME الاحترافي للعناية بالشعر",
-    description:
-      "روتين احترافي لشعر أكثر نعومة ولمعانا. دفع عند الاستلام داخل المغرب.",
+    title: brand.metaTitle,
+    description: brand.shortDescription,
     type: "website",
     locale: "ar_MA",
-    siteName: "تاجكِ",
+    siteName: brand.name,
     images: [
       {
         url: "/og-image.svg",
         width: 1200,
         height: 630,
-        alt: "تاجكِ — OXIPRIME",
+        alt: `${brand.name} — ${brand.productLine}`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "تاجكِ | روتين OXIPRIME الاحترافي للعناية بالشعر",
-    description:
-      "روتين احترافي لشعر أكثر نعومة ولمعانا. دفع عند الاستلام داخل المغرب.",
+    title: brand.metaTitle,
+    description: brand.shortDescription,
     images: ["/og-image.svg"],
   },
   robots: { index: true, follow: true },

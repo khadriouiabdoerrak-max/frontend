@@ -15,7 +15,9 @@ export function OrganizationJsonLd() {
         '@context': 'https://schema.org',
         '@type': 'Organization',
         name: 'تاجكِ',
-        alternateName: 'OXIPRIME Morocco',
+        alternateName: ['OXIPRIME Morocco', 'الدار المغربية لروتين إصلاح الشعر الكامل'],
+        description:
+          'تاجكِ — الدار المغربية لروتين OXIPRIME الكامل لإصلاح الشعر. دفع عند الاستلام داخل المغرب.',
         url: siteUrl,
         logo: `${siteUrl}/images/oxiprime-logo.svg`,
         email: 'contact@oxiprime.store',

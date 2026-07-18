@@ -12,6 +12,10 @@ export default function ReturnPolicyPage() {
           سياسة التوصيل والدفع عند الاستلام
         </h1>
         <div className="bg-ivory rounded-card border border-champagne/30 p-8 space-y-8 text-sm text-secondary leading-loose">
+          <p>
+            ثقة تاجكِ مبنية على وضوح الخدمة: تأكيد بالهاتف، دفع عند الاستلام،
+            وتوصيل داخل المغرب.
+          </p>
           <section>
             <h2 className="font-bold text-cocoa mb-3 text-base">
               التوصيل

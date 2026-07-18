@@ -81,7 +81,7 @@ export function HomeBelowFold() {
           <div className="container mx-auto max-w-5xl">
             <div className="overflow-hidden rounded-card border border-gold/40 bg-background shadow-card">
               <div className="bg-cocoa text-ivory text-center py-2.5 text-sm font-bold">
-                الأكثر توفيرا — باك OXIPRIME الكامل
+                اختيار تاجكِ — باك OXIPRIME الكامل
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2">
                 <Link
@@ -161,10 +161,11 @@ export function HomeBelowFold() {
         <div className="container mx-auto max-w-5xl">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <h2 className="text-2xl sm:text-4xl font-bold text-cocoa mb-3">
-              روتين من 4 خطوات
+              روتين إصلاح من 4 خطوات
             </h2>
             <p className="text-sm text-secondary leading-relaxed">
-              كل خطوة كتكمّل اللي قبلها. النتيجة أوضح ملي كتستعملي الروتين كامل.
+              هاد الترتيب هو أساس تاجكِ: كل خطوة كتكمّل اللي قبلها. النتيجة أوضح
+              ملي كتستعملي الروتين كامل.
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -361,12 +362,13 @@ export function HomeBelowFold() {
               ابدئي روتين تاجكِ اليوم
             </h2>
             <p className="text-sm text-champagne/80 leading-relaxed">
-              الباك الكامل بـ {formatPrice(bundleProduct.price)} بدل{' '}
-              {formatPrice(bundleProduct.compareAtPrice!)} — دفع عند الاستلام.
+              شعركِ تاجكِ — الباك الكامل بـ {formatPrice(bundleProduct.price)}{' '}
+              بدل {formatPrice(bundleProduct.compareAtPrice!)} ودفع عند
+              الاستلام.
             </p>
             <AddToCartButton
               product={bundleCartItem}
-              className="bg-gold text-cocoa px-8 py-4 font-bold rounded-btn hover:bg-champagne transition-colors"
+              className="bg-gold text-ivory px-8 py-4 font-bold rounded-btn hover:bg-gold/90 transition-colors"
             >
               أضيفي الروتين الكامل — {formatPrice(bundleProduct.price)}
             </AddToCartButton>

@@ -143,9 +143,10 @@ export default function QuizPage() {
     <div className="min-h-screen bg-background px-4 py-12">
       <div className="max-w-xl mx-auto">
         <div className="text-center mb-8 space-y-2">
+          <p className="text-xs font-bold tracking-wide text-gold">تاجكِ</p>
           <h1 className="text-3xl font-bold text-cocoa">اختبار الشعر</h1>
           <p className="text-sm text-secondary">
-            4 أسئلة قصيرة — ونقترحو عليكِ الأنسب من OXIPRIME.
+            4 أسئلة قصيرة — ونقترحو عليكِ الأنسب من روتين OXIPRIME.
           </p>
         </div>
 

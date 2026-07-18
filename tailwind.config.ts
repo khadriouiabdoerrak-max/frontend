@@ -9,19 +9,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#F8F1E7",
-        ivory: "#FFFDF8",
-        champagne: "#D8B98C",
-        gold: "#C99A4A",
-        cocoa: "#3A2418",
-        espresso: "#1F1712",
-        "muted-brown": "#6D5A4A",
-        success: "#2F6B45",
+        /* Crown Jade system — prestige botanical, not cream-gold beauty default */
+        background: "#F2F0EC",
+        ivory: "#FAF9F7",
+        champagne: "#B8C5BE",
+        gold: "#1A6B58",
+        cocoa: "#14241F",
+        espresso: "#0C1612",
+        "muted-brown": "#5A6B63",
+        success: "#1F7A4D",
         error: "#B42318",
-        surface: "#FFFDF8",
-        primary: "#1F1712",
-        secondary: "#6D5A4A",
-        accent: "#3A2418",
+        surface: "#FAF9F7",
+        primary: "#0C1612",
+        secondary: "#5A6B63",
+        accent: "#1A6B58",
       },
       fontFamily: {
         sans: ["var(--font-ibm-plex-arabic)", "sans-serif"],
@@ -33,8 +34,8 @@ const config: Config = {
         btn: "12px",
       },
       boxShadow: {
-        card: "0 2px 16px 0 rgba(58,36,24,0.08)",
-        modal: "0 8px 48px 0 rgba(58,36,24,0.18)",
+        card: "0 2px 14px 0 rgba(20,36,31,0.07)",
+        modal: "0 8px 40px 0 rgba(20,36,31,0.16)",
       },
     },
   },
