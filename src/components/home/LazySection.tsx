@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 export function LazySection({
   children,
   minHeight = '1px',
-  rootMargin = '120px',
+  rootMargin = '60px',
 }: {
   children: React.ReactNode;
   minHeight?: string;
@@ -18,10 +18,9 @@ export function LazySection({
     const node = ref.current;
     if (!node) return;
 
-    // Skip observer work if already near viewport on first paint
     if (typeof window !== 'undefined') {
       const rect = node.getBoundingClientRect();
-      if (rect.top < window.innerHeight + 120) {
+      if (rect.top < window.innerHeight + 40) {
         setVisible(true);
         return;
       }
@@ -42,7 +41,11 @@ export function LazySection({
   }, [rootMargin]);
 
   return (
-    <div ref={ref} style={{ minHeight: visible ? undefined : minHeight }}>
+    <div
+      ref={ref}
+      className="content-auto"
+      style={{ minHeight: visible ? undefined : minHeight }}
+    >
       {visible ? children : null}
     </div>
   );

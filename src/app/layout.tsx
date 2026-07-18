@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { arabicFont } from "@/lib/fonts";
 import { CartProvider } from '@/components/cart/CartProvider';
 import { Navbar } from '@/components/layout/Navbar';
-import { Footer } from '@/components/layout/Footer';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
-import { WhatsAppButton } from '@/components/layout/WhatsAppButton';
-import { StickyOrderBar } from '@/components/home/StickyOrderBar';
-import { TrackingScripts } from '@/components/tracking/TrackingScripts';
+import { DeferredChrome } from '@/components/layout/DeferredChrome';
 import { OrganizationJsonLd } from '@/components/seo/JsonLd';
+
+const Footer = dynamic(
+  () => import('@/components/layout/Footer').then((mod) => mod.Footer),
+  { loading: () => null },
+);
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://oxiprime.store",
@@ -57,13 +61,11 @@ export default function RootLayout({
       >
         <CartProvider>
           <OrganizationJsonLd />
-          <TrackingScripts />
           <AnnouncementBar />
           <Navbar />
           <main className="flex-grow pb-20">{children}</main>
           <Footer />
-          <StickyOrderBar />
-          <WhatsAppButton />
+          <DeferredChrome />
         </CartProvider>
       </body>
     </html>

@@ -12,9 +12,18 @@ body {
   background: var(--background);
 }
 
+html {
+  direction: rtl;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .content-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 480px;
   }
 
   .animate-fade-up {
@@ -53,33 +62,19 @@ body {
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Custom Scrollbar — desktop only (cheap on phones) */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 6px;
   }
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #F8F1E7;
-}
-::-webkit-scrollbar-thumb {
-  background: #D8B98C;
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #C99A4A;
-}
-
-/* RTL defaults */
-html {
-  direction: rtl;
+  ::-webkit-scrollbar-track {
+    background: #F8F1E7;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #D8B98C;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #C99A4A;
+  }
 }

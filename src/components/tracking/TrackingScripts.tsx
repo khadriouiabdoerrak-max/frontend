@@ -1,15 +1,70 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Script from 'next/script';
 
+function useDeferredReady(timeoutMs = 4000) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let done = false;
+    let idleId: number | undefined;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+
+    const enable = () => {
+      if (done) return;
+      done = true;
+      setReady(true);
+      window.removeEventListener('scroll', enable);
+      window.removeEventListener('pointerdown', enable);
+      window.removeEventListener('touchstart', enable);
+      window.removeEventListener('keydown', enable);
+      if (idleId !== undefined && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId !== undefined) clearTimeout(timerId);
+    };
+
+    window.addEventListener('scroll', enable, { once: true, passive: true });
+    window.addEventListener('pointerdown', enable, { once: true });
+    window.addEventListener('touchstart', enable, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener('keydown', enable, { once: true });
+
+    if ('requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(enable, { timeout: timeoutMs });
+    } else {
+      timerId = setTimeout(enable, timeoutMs);
+    }
+
+    return () => {
+      done = true;
+      window.removeEventListener('scroll', enable);
+      window.removeEventListener('pointerdown', enable);
+      window.removeEventListener('touchstart', enable);
+      window.removeEventListener('keydown', enable);
+      if (idleId !== undefined && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId !== undefined) clearTimeout(timerId);
+    };
+  }, [timeoutMs]);
+
+  return ready;
+}
+
 export function TrackingScripts() {
+  const ready = useDeferredReady(4000);
   const metaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
   const tiktokPixelId = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID;
   const snapchatPixelId = process.env.NEXT_PUBLIC_SNAPCHAT_PIXEL_ID;
 
+  if (!ready) return null;
+
   return (
     <>
-      {/* Meta Pixel */}
       {metaPixelId && (
         <Script id="meta-pixel" strategy="lazyOnload">
           {`
@@ -27,7 +82,6 @@ export function TrackingScripts() {
         </Script>
       )}
 
-      {/* TikTok Pixel */}
       {tiktokPixelId && (
         <Script id="tiktok-pixel" strategy="lazyOnload">
           {`
@@ -40,7 +94,6 @@ export function TrackingScripts() {
         </Script>
       )}
 
-      {/* Snapchat Pixel */}
       {snapchatPixelId && (
         <Script id="snapchat-pixel" strategy="lazyOnload">
           {`

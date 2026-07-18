@@ -50,11 +50,11 @@ export function Navbar() {
     : 0;
 
   const navLinks = [
-    { href: '/', label: 'الرئيسية' },
-    { href: '/collection', label: 'المجموعة' },
-    { href: '/quiz', label: 'اختبار الشعر' },
-    { href: '/guides', label: 'الدليل' },
-    { href: '/contact', label: 'تواصلي معنا' },
+    { href: '/', label: 'الرئيسية', prefetch: true },
+    { href: '/collection', label: 'المجموعة', prefetch: false },
+    { href: '/quiz', label: 'اختبار الشعر', prefetch: false },
+    { href: '/guides', label: 'الدليل', prefetch: false },
+    { href: '/contact', label: 'تواصلي معنا', prefetch: false },
   ];
 
   return (
@@ -86,6 +86,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={link.prefetch}
                 className="hover:text-cocoa transition-colors"
               >
                 {link.label}
@@ -136,6 +137,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={link.prefetch}
                 className="block py-3 text-base font-medium text-secondary hover:text-cocoa transition-colors border-b border-champagne/20 last:border-0"
                 onClick={() => setMenuOpen(false)}
               >
