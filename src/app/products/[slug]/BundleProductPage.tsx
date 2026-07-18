@@ -1,12 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils';
 import { bundleProduct, type Product } from '@/lib/products';
 import { StarRating } from '@/components/home/StarRating';
 import { LazySection } from '@/components/home/LazySection';
+import {
+  CodTrustList,
+  CompactOrderFlow,
+  ProductReviewsSection,
+  ResultPromiseSection,
+  WhatsAppAskLink,
+} from '@/components/product/ProductTrustBits';
 
 const bundleSaving =
   (bundleProduct.compareAtPrice ?? bundleProduct.price) - bundleProduct.price;
@@ -23,7 +29,7 @@ const bundleFaqs = [
       'نعم، كيتواصل معك الفريق بالهاتف لتأكيد الاسم، المدينة، العنوان والمنتجات. إلا ما ردّيتيش، أو بغيتي تعدّلي أو تلغي قبل الإرسال، الطلب ما كيمشيش.',
   },
   {
-    title: 'علاش ما ناخدش غير شامبو بـ 199 درهم؟',
+    title: 'علاش الباك أحسن من منتج واحد؟',
     content:
       'الشامبو بوحدو كينظف، ولكن النتيجة كتبقى ناقصة بلا ترطيب وتغذية وحماية. الباك كيعطيك الروتين كامل بـ 599 درهم بدل 796 درهم إلا خذيتيهم فرادى — وتوفري 197 درهم.',
   },
@@ -33,62 +39,19 @@ const bundleFaqs = [
       'نعم. الروتين موجه للشعر الجاف، الباهت، المتقصف، والمنفوش، وخصوصا بعد الصباغة أو الحرارة. النتائج تختلف حسب نوع الشعر وطريقة الاستعمال.',
   },
   {
-    title: 'واش شعري الدهني من الجذور يقدر يستعملو؟',
-    content:
-      'نعم، مع طريقة صحيحة: الشامبو على الفروة، البلسم والماسك والسيروم على الأطراف والطول. تجنبي الجذور فالبلسم والسيروم باش ما يبانش الشعر دهني.',
-  },
-  {
     title: 'كيفاش نستعملو يوم بيوم؟',
     content:
       'بعد كل غسلة: شامبو ثم بلسم. الماسك مرة أو جوج فالأسبوع. السيروم على الأطراف قبل السشوار أو بعده. الترتيب هو اللي كيعطي فرق.',
   },
   {
-    title: 'فحال شحال التوصيل؟ واش لجميع المدن؟',
+    title: 'فحال شحال التوصيل؟',
     content:
       'بعد التأكيد بالهاتف، عادة من 2 إلى 4 أيام عمل حسب المدينة والمخزون. الخدمة موجهة للتوصيل داخل المغرب.',
   },
   {
-    title: 'واش المنتجات أصلية؟ علاش نثق؟',
+    title: 'إلا وصلات الطلبية وفيها مشكل؟',
     content:
-      'تاجكِ دار مغربية متخصصة فروتين OXIPRIME الكامل: صور ومعلومات واضحة، تأكيد بالهاتف قبل الإرسال، ودفع عند الاستلام — كتشوفي الطلبية قبل ما تخلصي.',
-  },
-  {
-    title: 'شحال غادي يدوم الباك؟',
-    content:
-      'حسب طول الشعر وعدد الغسلات. غالبا أسابيع للشعر المتوسط. الماسك أسبوعي لذلك كيطول أكثر.',
-  },
-  {
-    title: 'واش غادي نشوف فرق بسرعة؟',
-    content:
-      'كثير كيحسو بنعومة وسهولة التسريح من أول غسلات. اللمعان وتقليل النفشة كيبانو أوضح مع أسبوع أو أكثر من الاستعمال المنتظم. عناية تجميلية، ليست علاجا طبيا.',
-  },
-  {
-    title: 'إلا وصلات الطلبية ناقصة أو فيها مشكل؟',
-    content:
-      'تواصلي معنا مباشرة بعد الاستلام. كنعاونوك حسب حالة الطلب. لهذا كنأكدو التفاصيل بالهاتف قبل الإرسال باش نقلّلو الغلط.',
-  },
-];
-
-const orderFlow = [
-  {
-    step: '1',
-    title: 'تسجلي الطلب',
-    desc: 'أضيفي الباك للسلة وكملّي المعلومات.',
-  },
-  {
-    step: '2',
-    title: 'نتصلو بيك',
-    desc: 'كنأكدو الاسم، المدينة والعنوان بالهاتف.',
-  },
-  {
-    step: '3',
-    title: 'كنرسلو الطلبية',
-    desc: 'بعد التأكيد، الطلبية كتمشي للتوصيل.',
-  },
-  {
-    step: '4',
-    title: 'كتخلصي عند الباب',
-    desc: 'تشوفي الطلبية وتخلصي عند الاستلام.',
+      'تواصلي معنا مباشرة بعد الاستلام. كنعاونوك حسب حالة الطلب. لهذا كنأكدو التفاصيل بالهاتف قبل الإرسال.',
   },
 ];
 
@@ -134,26 +97,6 @@ const bundleSteps = [
   },
 ];
 
-const trustPoints = [
-  {
-    title: 'دفع عند الاستلام',
-    desc: 'كتخلصي غير ملي توصل الطلبية.',
-  },
-  {
-    title: 'تأكيد بالهاتف',
-    desc: 'كنأكدو العنوان قبل ما نرسلو.',
-  },
-  {
-    title: 'توصيل المغرب',
-    desc: 'خدمة داخل المدن المغربية.',
-  },
-  {
-    title: 'طلب واضح',
-    desc: 'باك واحد، ثمن واضح، بلا تعقيد.',
-  },
-];
-
-
 export function BundleProductPage({
   product,
   isAdding,
@@ -167,7 +110,6 @@ export function BundleProductPage({
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero */}
       <section className="px-4 py-8 sm:py-12 bg-gradient-to-b from-[#EFE6D6] to-background">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <div className="relative overflow-hidden rounded-card border border-champagne/40 shadow-card aspect-[4/5] bg-gradient-to-b from-background to-champagne/20">
@@ -180,24 +122,21 @@ export function BundleProductPage({
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 520px"
               className="object-cover"
             />
-            <div className="absolute right-3 top-3 rounded-full bg-cocoa px-3 py-1.5 text-xs font-bold text-ivory">
-              اختيار تاجكِ
-            </div>
-            <div className="absolute left-3 top-3 rounded-full bg-success text-ivory px-3 py-1.5 text-xs font-bold">
-              توفري {bundleSaving} درهم
-            </div>
           </div>
 
           <div className="space-y-5 text-center lg:text-right lg:sticky lg:top-24 min-w-0 w-full">
-            <span className="inline-block bg-gold/15 text-gold text-xs font-bold px-3 py-1 rounded-badge">
-              تاجكِ · الدار المغربية لروتين الإصلاح الكامل
-            </span>
-            <div className="min-w-0 px-1">
+            <p className="text-xs font-bold tracking-wide text-gold">
+              تاجكِ · روتين إصلاح كامل
+            </p>
+            <div className="min-w-0 px-1 space-y-2">
               <h1 className="text-2xl sm:text-4xl font-bold text-cocoa leading-snug break-words">
-                روتين OXIPRIME الكامل لإصلاح وترطيب الشعر
+                روتين OXIPRIME الكامل
               </h1>
-              <p className="text-sm text-muted-brown mt-2 break-words">
-                شامبو + بلسم + ماسك + سيروم — باك واحد، طلب واحد، نتيجة مرتبة
+              <p className="text-sm sm:text-base text-cocoa/90 font-medium leading-relaxed">
+                للشعر الجاف، المصبوغ والمنفوش — نعومة وتسريح أسهل مع الاستمرار.
+              </p>
+              <p className="text-sm text-muted-brown break-words">
+                شامبو + بلسم + ماسك + سيروم · باك واحد · خلّصي عند الباب
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
@@ -206,11 +145,6 @@ export function BundleProductPage({
                 تقييم العميلات · دفع عند الاستلام
               </span>
             </div>
-            <p className="text-sm text-secondary leading-relaxed">
-              إلا كنتي كتشري شامبو وكتبقي بلا نتيجة، المشكل غالبا ماشي المنتج
-              بوحدو — المشكل أن العناية ناقصة. هاد الباك كيجمع الخطوات اللي
-              خاصّك: تنظيف، ترطيب، تغذية، وحماية.
-            </p>
 
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
@@ -242,11 +176,7 @@ export function BundleProductPage({
                   توفري {bundleSaving} درهم
                 </span>
               </div>
-              <ul className="space-y-1.5 text-xs text-muted-brown text-right">
-                <li>✓ ما كتخلصيش حتى توصلك الطلبية</li>
-                <li>✓ كنأكدو الطلب بالهاتف قبل الإرسال</li>
-                <li>✓ تقدري تلغي أو تعدّلي قبل ما نرسلو</li>
-              </ul>
+              <CodTrustList />
               <button
                 type="button"
                 onClick={onAddToCart}
@@ -257,6 +187,7 @@ export function BundleProductPage({
                   ? 'تمت الإضافة للسلة ✓'
                   : 'اطلبي الباك دابا — خلّصي عند الاستلام'}
               </button>
+              <WhatsAppAskLink productName={product.nameAr} />
               <p className="text-xs text-muted-brown">
                 بعد الطلب: اتصال للتأكيد ← توصيل ← الدفع عند الباب
               </p>
@@ -265,38 +196,8 @@ export function BundleProductPage({
         </div>
       </section>
 
-      {/* What happens after order - #1 COD trust */}
-      <section className="px-4 py-12 bg-cocoa text-ivory">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center max-w-2xl mx-auto mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold mb-3">
-              شنو كاين من بعد ما تطلبي؟
-            </h2>
-            <p className="text-sm text-champagne/85 leading-relaxed">
-              هادي أهم حاجة عند الزبونة المغربية: تعرف شنو غادي يوقع، ومتى
-              غادي تخلص.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {orderFlow.map((item) => (
-              <div
-                key={item.step}
-                className="rounded-card border border-white/10 bg-white/5 p-5 text-center"
-              >
-                <div className="w-10 h-10 rounded-full bg-gold text-cocoa font-bold flex items-center justify-center mx-auto mb-3 font-sans">
-                  {item.step}
-                </div>
-                <p className="font-bold text-sm mb-1">{item.title}</p>
-                <p className="text-xs text-champagne/80 leading-relaxed">
-                  {item.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <CompactOrderFlow />
 
-      {/* Why complete routine convinces better than price table */}
       <section className="px-4 py-12 bg-background">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center max-w-2xl mx-auto mb-8">
@@ -304,8 +205,7 @@ export function BundleProductPage({
               علاش منتج واحد كيبقا ناقص؟
             </h2>
             <p className="text-sm text-secondary leading-relaxed">
-              بزاف ديال البنات كيشريو شامبو وكيستناو معجزة. الشعر خاصو سلسلة
-              عناية كاملة — كل خطوة كتكمّل اللي قبلها.
+              الشعر خاصو سلسلة عناية كاملة — كل خطوة كتكمّل اللي قبلها.
             </p>
           </div>
 
@@ -351,29 +251,13 @@ export function BundleProductPage({
               </p>
             </div>
           </div>
-
-          <div className="rounded-card border border-champagne/40 bg-ivory p-5 sm:p-6 text-center max-w-2xl mx-auto">
-            <p className="text-sm text-secondary leading-relaxed mb-4">
-              الباك كامل بـ{' '}
-              <span className="font-bold text-cocoa">
-                {formatPrice(product.price)}
-              </span>{' '}
-              مع دفع عند الاستلام وتأكيد بالهاتف. ما تحتاجيش تختاري — الروتين
-              جاهز.
-            </p>
-            <button
-              type="button"
-              onClick={onAddToCart}
-              disabled={isAdding}
-              className="w-full sm:w-auto bg-cocoa text-ivory px-8 py-3.5 font-bold rounded-btn hover:bg-espresso transition-colors disabled:opacity-70"
-            >
-              {isAdding ? 'تمت الإضافة ✓' : 'أضيفي الروتين الكامل للسلة'}
-            </button>
-          </div>
         </div>
       </section>
 
-      {/* Pain + fit */}
+      <LazySection minHeight="420px">
+        <ResultPromiseSection />
+      </LazySection>
+
       <section className="px-4 py-12 bg-ivory">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="rounded-card border border-champagne/30 bg-background p-6 shadow-card">
@@ -402,7 +286,7 @@ export function BundleProductPage({
             <ul className="space-y-3 text-sm text-secondary">
               {[
                 'بغيتي نتيجة أوضح من منتج واحد',
-                'بغيتي توفير 197 درهم على الروتين كامل',
+                'بغيتي توفير واضح على الروتين كامل',
                 'بغيتي تخلصي غير ملي توصل الطلبية',
                 'بغيتي واحد يتصل بيك قبل الإرسال',
                 'بغيتي خطوات بسيطة: 1 ثم 2 ثم 3 ثم 4',
@@ -417,7 +301,6 @@ export function BundleProductPage({
         </div>
       </section>
 
-      {/* How routine works + visuals */}
       <LazySection minHeight="520px">
         <section className="px-4 py-12 bg-background">
           <div className="container mx-auto max-w-5xl">
@@ -426,8 +309,7 @@ export function BundleProductPage({
                 كيفاش يخدم الروتين؟
               </h2>
               <p className="text-sm text-secondary leading-relaxed">
-                ماشي 4 منتجات مفرّقين — روتين واحد مرتب. الصور غير للشرح، بلا
-                روابط تخرجك من صفحة الباك.
+                4 خطوات مرتبة — كل صورة كتوضح مرحلة الاستعمال.
               </p>
             </div>
 
@@ -473,44 +355,12 @@ export function BundleProductPage({
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-      </LazySection>
 
-      {/* Results + ingredients */}
-      <section className="px-4 py-12 bg-ivory">
-        <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
-          <div className="relative aspect-[16/11] overflow-hidden rounded-card border border-champagne/30 shadow-card">
-            <Image
-              src="/images/oxiprime-smooth-hair-result.webp"
-              alt="نتيجة شعر ناعم ولامع مع روتين OXIPRIME"
-              fill
-              sizes="(max-width: 1024px) 100vw, 480px"
-              quality={75}
-              loading="lazy"
-              className="object-cover"
-            />
-          </div>
-          <div className="space-y-5">
-            <h2 className="text-2xl sm:text-3xl font-bold text-cocoa">
-              شنو تقدري تحسي بيه؟
-            </h2>
-            <ul className="space-y-3 text-sm text-secondary">
-              {[
-                'نعومة وسهولة تسريح من أول غسلات',
-                'لمعان أوضح مع الاستمرار أسبوع أو أكثر',
-                'نفشة أقل خصوصا مع السيروم',
-                'روتين واضح ما كيبقاش غير شامبو بوحدو',
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-2 min-w-0">
-                  <span className="text-success font-bold shrink-0">✓</span>
-                  <span className="min-w-0 flex-1 break-words">{item}</span>
-                </li>
-              ))}
-            </ul>
-            <div>
-              <p className="font-bold text-cocoa mb-2 text-sm">المكونات البارزة</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="mt-8 rounded-card border border-champagne/40 bg-ivory p-5 text-center max-w-2xl mx-auto">
+              <p className="text-sm text-secondary leading-relaxed mb-2">
+                المكونات البارزة فالمجموعة
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
                 {product.ingredients.map((ing) => (
                   <span
                     key={ing}
@@ -520,87 +370,28 @@ export function BundleProductPage({
                   </span>
                 ))}
               </div>
+              <p className="mt-3 text-[11px] text-muted-brown leading-relaxed">
+                عناية تجميلية بالشعر، ليست علاجا طبيا.
+              </p>
             </div>
-            <p className="text-[11px] text-muted-brown leading-relaxed">
-              عناية تجميلية بالشعر، ليست علاجا طبيا. النتائج تختلف حسب نوع
-              الشعر وطريقة الاستعمال.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Trust strip */}
-      <section className="px-4 py-10 bg-background">
-        <div className="container mx-auto max-w-5xl">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {trustPoints.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-card border border-champagne/30 bg-ivory p-4 text-center"
-              >
-                <p className="font-bold text-sm text-cocoa mb-1">{item.title}</p>
-                <p className="text-xs text-muted-brown leading-relaxed">
-                  {item.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <LazySection minHeight="280px">
-        <section className="px-4 py-12 bg-ivory">
-          <div className="container mx-auto max-w-5xl">
-            <h2 className="text-2xl font-bold text-cocoa text-center mb-2">
-              علاش العميلات كيطمّنو قبل ما يخلصو؟
-            </h2>
-            <p className="text-sm text-secondary text-center mb-8">
-              الثقة كتجي من الدفع عند الاستلام + التأكيد بالهاتف + روتين واضح.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                {
-                  name: 'س.م. · الدار البيضاء',
-                  text: 'خلصت غير ملي وصلات الطلبية. الشعر ولى أسهل فالتسريح من أول أسبوع.',
-                },
-                {
-                  name: 'ف.ب. · الرباط',
-                  text: 'كنت كنضيّع فلوس فتجارب. الباك وفرّ ليا 197 درهم وخلاه الروتين واضح.',
-                },
-                {
-                  name: 'ن.ح. · مراكش',
-                  text: 'تصلو بيا قبل الإرسال وعدّلت العنوان. هاد الشي اللي خلاني نطلب براحة.',
-                },
-              ].map((review) => (
-                <div
-                  key={review.name}
-                  className="rounded-card border border-champagne/30 bg-background p-5 space-y-3"
-                >
-                  <StarRating rating={5} />
-                  <p className="text-sm text-secondary leading-relaxed italic">
-                    &ldquo;{review.text}&rdquo;
-                  </p>
-                  <p className="text-xs text-muted-brown">{review.name}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-center text-[11px] text-muted-brown mt-4">
-              شهادات أولية. النتائج قد تختلف حسب نوع الشعر.
-            </p>
           </div>
         </section>
       </LazySection>
 
-      {/* FAQ */}
+      <LazySection minHeight="280px">
+        <ProductReviewsSection
+          title="علاش العميلات كيطمّنو قبل ما يخلصو؟"
+          subtitle="الدفع عند الاستلام + التأكيد بالهاتف + روتين واضح"
+        />
+      </LazySection>
+
       <section className="px-4 py-12 bg-background">
         <div className="container mx-auto max-w-3xl">
           <h2 className="text-2xl sm:text-3xl font-bold text-cocoa text-center mb-3">
-            كلشي اللي كتوقف الزبونة قبل الطلب
+            أسئلة قبل ما تطلبي
           </h2>
           <p className="text-sm text-secondary text-center mb-8 leading-relaxed">
-            جاوبنا بصراحة على الأسئلة اللي كتخلي الكليانة تتردّد — خصوصا الدفع،
-            الهاتف، والأصالة.
+            الدفع، الهاتف، الاستعمال، والتوصيل — باختصار.
           </p>
           <div className="rounded-card border border-champagne/30 bg-ivory divide-y divide-champagne/30">
             {bundleFaqs.map((faq, i) => (
@@ -628,11 +419,10 @@ export function BundleProductPage({
         </div>
       </section>
 
-      {/* Final CTA */}
       <section className="px-4 py-12 bg-ivory">
         <div className="container mx-auto max-w-2xl text-center space-y-5 rounded-card border border-gold/40 bg-background p-6 sm:p-8 shadow-card">
           <h2 className="text-2xl sm:text-3xl font-bold text-cocoa">
-            القرار بسيط: باك واحد، ثقة أكبر
+            باك واحد · ثقة أوضح
           </h2>
           <p className="text-sm text-muted-brown leading-relaxed">
             {formatPrice(product.price)} بدل {formatPrice(product.compareAtPrice!)}{' '}
@@ -647,13 +437,12 @@ export function BundleProductPage({
           >
             {isAdding ? 'تمت الإضافة ✓' : 'أضيفي الباك الكامل للسلة'}
           </button>
+          <WhatsAppAskLink productName={product.nameAr} />
           <p className="text-xs text-muted-brown">
             إلغاء أو تعديل ممكن قبل الإرسال · توصيل داخل المغرب
           </p>
         </div>
       </section>
-
     </div>
   );
 }
-

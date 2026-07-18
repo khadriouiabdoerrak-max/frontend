@@ -8,152 +8,12 @@ import { formatPrice } from '@/lib/utils';
 import { products, bundleProduct, getListImage, type Product } from '@/lib/products';
 import { StarRating } from '@/components/home/StarRating';
 import { LazySection } from '@/components/home/LazySection';
-
-const bundleSaving =
-  (bundleProduct.compareAtPrice ?? bundleProduct.price) - bundleProduct.price;
-
-const bundleFaqs = [
-  {
-    title: 'واش غادي نخلص قبل ما نوصلني؟',
-    content:
-      'لا. الدفع عند الاستلام فقط. كتخلصي ملي توصل الطلبية لباب الدار. ما كاينش بطاقة بنكية ولا تحويل مسبقا.',
-  },
-  {
-    title: 'واش غادي يتصلو بيا؟ واش نقدر نلغي؟',
-    content:
-      'نعم، كيتواصل معك الفريق بالهاتف لتأكيد الاسم، المدينة، العنوان والمنتجات. إلا ما ردّيتيش، أو بغيتي تعدّلي أو تلغي قبل الإرسال، الطلب ما كيمشيش.',
-  },
-  {
-    title: 'علاش ما ناخدش غير شامبو بـ 199 درهم؟',
-    content:
-      'الشامبو بوحدو كينظف، ولكن النتيجة كتبقى ناقصة بلا ترطيب وتغذية وحماية. الباك كيعطيك الروتين كامل بـ 599 درهم بدل 796 درهم إلا خذيتيهم فرادى — وتوفري 197 درهم.',
-  },
-  {
-    title: 'واش مناسب لشعري المصبوغ / المتضرر / المنفوش؟',
-    content:
-      'نعم. الروتين موجه للشعر الجاف، الباهت، المتقصف، والمنفوش، وخصوصا بعد الصباغة أو الحرارة. النتائج تختلف حسب نوع الشعر وطريقة الاستعمال.',
-  },
-  {
-    title: 'واش شعري الدهني من الجذور يقدر يستعملو؟',
-    content:
-      'نعم، مع طريقة صحيحة: الشامبو على الفروة، البلسم والماسك والسيروم على الأطراف والطول. تجنبي الجذور فالبلسم والسيروم باش ما يبانش الشعر دهني.',
-  },
-  {
-    title: 'كيفاش نستعملو يوم بيوم؟',
-    content:
-      'بعد كل غسلة: شامبو ثم بلسم. الماسك مرة أو جوج فالأسبوع. السيروم على الأطراف قبل السشوار أو بعده. الترتيب هو اللي كيعطي فرق.',
-  },
-  {
-    title: 'فحال شحال التوصيل؟ واش لجميع المدن؟',
-    content:
-      'بعد التأكيد بالهاتف، عادة من 2 إلى 4 أيام عمل حسب المدينة والمخزون. الخدمة موجهة للتوصيل داخل المغرب.',
-  },
-  {
-    title: 'واش المنتجات أصلية؟ علاش نثق؟',
-    content:
-      'كنعرضو صور ومعلومات واضحة، وكنأكدو الطلب بالهاتف قبل الإرسال. كتخلصي غير عند الاستلام — يعني كتشوفي الطلبية قبل ما تخلصي.',
-  },
-  {
-    title: 'شحال غادي يدوم الباك؟',
-    content:
-      'حسب طول الشعر وعدد الغسلات. غالبا أسابيع للشعر المتوسط. الماسك أسبوعي لذلك كيطول أكثر.',
-  },
-  {
-    title: 'واش غادي نشوف فرق بسرعة؟',
-    content:
-      'كثير كيحسو بنعومة وسهولة التسريح من أول غسلات. اللمعان وتقليل النفشة كيبانو أوضح مع أسبوع أو أكثر من الاستعمال المنتظم. عناية تجميلية، ليست علاجا طبيا.',
-  },
-  {
-    title: 'إلا وصلات الطلبية ناقصة أو فيها مشكل؟',
-    content:
-      'تواصلي معنا مباشرة بعد الاستلام. كنعاونوك حسب حالة الطلب. لهذا كنأكدو التفاصيل بالهاتف قبل الإرسال باش نقلّلو الغلط.',
-  },
-];
-
-const orderFlow = [
-  {
-    step: '1',
-    title: 'تسجلي الطلب',
-    desc: 'أضيفي الباك للسلة وكملّي المعلومات.',
-  },
-  {
-    step: '2',
-    title: 'نتصلو بيك',
-    desc: 'كنأكدو الاسم، المدينة والعنوان بالهاتف.',
-  },
-  {
-    step: '3',
-    title: 'كنرسلو الطلبية',
-    desc: 'بعد التأكيد، الطلبية كتمشي للتوصيل.',
-  },
-  {
-    step: '4',
-    title: 'كتخلصي عند الباب',
-    desc: 'تشوفي الطلبية وتخلصي عند الاستلام.',
-  },
-];
-
-const usageVisuals = [
-  {
-    src: '/images/oxiprime-shampoo-use-realistic.webp',
-    label: '1 · تنظيف',
-  },
-  {
-    src: '/images/oxiprime-conditioner-use-realistic.webp',
-    label: '2 · ترطيب',
-  },
-  {
-    src: '/images/oxiprime-mask-use-realistic.webp',
-    label: '3 · تغذية',
-  },
-  {
-    src: '/images/oxiprime-serum-use-realistic.webp',
-    label: '4 · حماية',
-  },
-];
-
-const bundleSteps = [
-  {
-    step: '1',
-    title: 'تنظيف لطيف',
-    desc: 'الشامبو كينقي الشعر والفروة بلا إحساس بالقساوة.',
-  },
-  {
-    step: '2',
-    title: 'ترطيب وتسريح',
-    desc: 'البلسم كيرطب الأطراف وكيعاون يفك التشابك.',
-  },
-  {
-    step: '3',
-    title: 'تغذية أسبوعية',
-    desc: 'الماسك كيعطي عناية مركزة للشعر الجاف والمتضرر.',
-  },
-  {
-    step: '4',
-    title: 'حماية ولمعان',
-    desc: 'السيروم كيحمي من الحرارة وكيزيد اللمعان بلا مظهر دهني.',
-  },
-];
-
-const trustPoints = [
-  {
-    title: 'دفع عند الاستلام',
-    desc: 'كتخلصي غير ملي توصل الطلبية.',
-  },
-  {
-    title: 'تأكيد بالهاتف',
-    desc: 'كنأكدو العنوان قبل ما نرسلو.',
-  },
-  {
-    title: 'توصيل المغرب',
-    desc: 'خدمة داخل المدن المغربية.',
-  },
-  {
-    title: 'طلب واضح',
-    desc: 'باك واحد، ثمن واضح، بلا تعقيد.',
-  },
-];
-
+import {
+  CodTrustList,
+  CompactOrderFlow,
+  ProductReviewsSection,
+  WhatsAppAskLink,
+} from '@/components/product/ProductTrustBits';
 
 function ProductImage({ product }: { product: Product }) {
   return (
@@ -171,7 +31,6 @@ function ProductImage({ product }: { product: Product }) {
   );
 }
 
-
 export function SingleProductPage({
   product,
   isAdding,
@@ -185,6 +44,8 @@ export function SingleProductPage({
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const otherProducts = products.filter((item) => item.id !== product.id);
+  const forWhom = product.suitableFor?.[0];
+  const promise = product.expectedResults?.[0] ?? product.benefits[0];
 
   const productFaqs = [
     {
@@ -219,26 +80,30 @@ export function SingleProductPage({
           <div className="space-y-5 text-center lg:text-right min-w-0 w-full overflow-visible">
             {product.step && (
               <span className="inline-block bg-gold/10 text-gold text-xs font-bold px-3 py-1 rounded-badge">
-                خطوة {product.step} — {product.stepLabel}
+                خطوة {product.step} من الروتين — {product.stepLabel}
               </span>
             )}
-            <div className="min-w-0 px-1">
+            <div className="min-w-0 px-1 space-y-2">
               <h1 className="text-2xl sm:text-3xl font-bold text-cocoa leading-snug break-words">
                 {product.nameAr}
               </h1>
-              <p
-                className="text-sm text-muted-brown mt-1 font-sans break-words"
-                dir="ltr"
-              >
-                {product.nameEn}
-              </p>
+              {forWhom && (
+                <p className="text-sm text-cocoa/90 font-medium leading-relaxed">
+                  مناسب لـ {forWhom}
+                </p>
+              )}
+              {promise && (
+                <p className="text-sm text-muted-brown leading-relaxed">
+                  النتيجة المتوقعة: {promise}
+                </p>
+              )}
             </div>
-            <StarRating rating={product.rating} />
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+              <StarRating rating={product.rating} />
+              <span className="text-xs text-muted-brown">دفع عند الاستلام</span>
+            </div>
             <p className="text-3xl font-bold text-cocoa">
               {formatPrice(product.price)}
-            </p>
-            <p className="text-sm text-secondary leading-relaxed break-words px-1">
-              {product.descriptionAr}
             </p>
 
             <ul className="space-y-2.5 text-sm text-secondary text-right w-full min-w-0">
@@ -258,6 +123,7 @@ export function SingleProductPage({
             </ul>
 
             <div className="rounded-card border border-gold/40 bg-ivory p-4 space-y-3 shadow-card">
+              <CodTrustList />
               <button
                 type="button"
                 onClick={onAddToCart}
@@ -268,9 +134,7 @@ export function SingleProductPage({
                   ? 'تمت الإضافة ✓'
                   : `أضيفي للسلة — ${formatPrice(product.price)}`}
               </button>
-              <p className="text-xs text-muted-brown break-words">
-                دفع عند الاستلام · تأكيد بالهاتف قبل الإرسال
-              </p>
+              <WhatsAppAskLink productName={product.nameAr} />
               <Link
                 href={`/products/${bundleProduct.slug}`}
                 className="block w-full border border-cocoa text-cocoa py-3 font-bold rounded-btn text-sm text-center hover:bg-cocoa/5 transition-colors break-words"
@@ -281,6 +145,8 @@ export function SingleProductPage({
           </div>
         </div>
       </section>
+
+      <CompactOrderFlow />
 
       <section className="px-4 py-10 bg-background">
         <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -316,17 +182,22 @@ export function SingleProductPage({
           <div className="container mx-auto max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <div className="space-y-4">
               {product.usageImage && (
-                <div className="relative aspect-[16/10] overflow-hidden rounded-card border border-champagne/30 shadow-card">
-                  <Image
-                    src={product.usageImage}
-                    alt={`طريقة استعمال ${product.nameAr}`}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 480px"
-                    quality={60}
-                    loading="lazy"
-                    className="object-cover"
-                  />
-                </div>
+                <figure className="overflow-hidden rounded-card border border-champagne/30 shadow-card bg-background">
+                  <div className="relative aspect-[16/10]">
+                    <Image
+                      src={product.usageImage}
+                      alt={`طريقة استعمال ${product.nameAr}`}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 480px"
+                      quality={60}
+                      loading="lazy"
+                      className="object-cover"
+                    />
+                  </div>
+                  <figcaption className="p-3 text-center text-xs font-bold text-muted-brown">
+                    طريقة الاستعمال
+                  </figcaption>
+                </figure>
               )}
               <div className="rounded-card border border-champagne/30 bg-background p-5 sm:p-6">
                 <h2 className="text-xl font-bold text-cocoa mb-4">
@@ -351,17 +222,22 @@ export function SingleProductPage({
 
             <div className="space-y-4">
               {product.resultImage && (
-                <div className="relative aspect-[16/10] overflow-hidden rounded-card border border-champagne/30 shadow-card">
-                  <Image
-                    src={product.resultImage}
-                    alt="نتيجة شعر ناعم ولامع"
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 480px"
-                    quality={60}
-                    loading="lazy"
-                    className="object-cover"
-                  />
-                </div>
+                <figure className="overflow-hidden rounded-card border border-gold/40 shadow-card bg-background">
+                  <div className="relative aspect-[16/10]">
+                    <Image
+                      src={product.resultImage}
+                      alt="نتيجة شعر ناعم ولامع"
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 480px"
+                      quality={60}
+                      loading="lazy"
+                      className="object-cover"
+                    />
+                  </div>
+                  <figcaption className="p-3 text-center text-xs font-bold text-cocoa">
+                    مع الاستمرار · نعومة ولمعان أوضح
+                  </figcaption>
+                </figure>
               )}
               <div className="rounded-card border border-champagne/30 bg-background p-5 sm:p-6">
                 <h2 className="text-xl font-bold text-cocoa mb-4">
@@ -401,7 +277,7 @@ export function SingleProductPage({
 
       <section className="px-4 py-10 bg-background">
         <div className="container mx-auto max-w-5xl">
-          <div className="rounded-card border border-champagne/30 bg-ivory p-5 sm:p-6 mb-6">
+          <div className="rounded-card border border-champagne/30 bg-ivory p-5 sm:p-6 mb-8">
             <h2 className="text-xl font-bold text-cocoa mb-3">
               المكونات البارزة
             </h2>
@@ -415,22 +291,6 @@ export function SingleProductPage({
                 </span>
               ))}
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-            {[
-              ['دفع عند الاستلام', 'كتخلصي غير ملي توصل الطلبية'],
-              ['تأكيد بالهاتف', 'كنأكدو العنوان قبل الإرسال'],
-              ['توصيل المغرب', 'خدمة داخل المدن المغربية'],
-            ].map(([title, desc]) => (
-              <div
-                key={title}
-                className="rounded-card border border-champagne/30 bg-ivory p-4 text-center"
-              >
-                <p className="font-bold text-sm text-cocoa mb-1">{title}</p>
-                <p className="text-xs text-muted-brown">{desc}</p>
-              </div>
-            ))}
           </div>
 
           <div className="rounded-card border border-gold/40 bg-gold/10 p-5 sm:p-6 text-center mb-8">
@@ -500,7 +360,11 @@ export function SingleProductPage({
       </section>
 
       <LazySection minHeight="280px">
-        <section className="px-4 py-10 bg-ivory">
+        <ProductReviewsSection />
+      </LazySection>
+
+      <LazySection minHeight="280px">
+        <section className="px-4 py-10 bg-background">
           <div className="container mx-auto max-w-5xl">
             <h2 className="text-xl sm:text-2xl font-bold text-cocoa text-center mb-6">
               منتجات أخرى من المجموعة
@@ -510,7 +374,7 @@ export function SingleProductPage({
                 <Link
                   key={item.id}
                   href={`/products/${item.slug}`}
-                  className="group bg-background rounded-card border border-champagne/30 overflow-hidden hover:border-gold/60 transition-colors"
+                  className="group bg-ivory rounded-card border border-champagne/30 overflow-hidden hover:border-gold/60 transition-colors"
                 >
                   <div className="relative aspect-[3/4] bg-gradient-to-b from-background to-champagne/20">
                     <Image
@@ -548,4 +412,3 @@ export function SingleProductPage({
     </div>
   );
 }
-
