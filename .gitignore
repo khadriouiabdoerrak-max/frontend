@@ -24,3 +24,7 @@ Thumbs.db
 # Misc
 node-installer.msi
 tsconfig.tsbuildinfo
+public/images/_compressed/
+public/images/.tmp-*
+public/images/instagram-grid/
+marketing/

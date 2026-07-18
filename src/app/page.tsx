@@ -87,8 +87,8 @@ export default function Home() {
                   alt={`شعر ناعم ولامع مع روتين ${brand.productLine}`}
                   fill
                   priority
-                  quality={60}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 520px"
+                  quality={45}
+                  sizes="(max-width: 640px) 92vw, (max-width: 1024px) 70vw, 480px"
                   className="object-cover md:transition-transform md:duration-700 md:group-hover:scale-105"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-cocoa/85 via-cocoa/40 to-transparent p-5 sm:p-6">

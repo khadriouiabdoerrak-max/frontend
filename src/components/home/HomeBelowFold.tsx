@@ -94,7 +94,7 @@ export function HomeBelowFold() {
                     alt="باك OXIPRIME الكامل: شامبو، بلسم، ماسك وسيروم"
                     fill
                     sizes="(max-width: 1024px) 100vw, 480px"
-                    quality={65}
+                    quality={45}
                     loading="lazy"
                     className="object-cover"
                   />
@@ -198,7 +198,7 @@ export function HomeBelowFold() {
                   alt="نتيجة شعر ناعم ولامع مع روتين OXIPRIME"
                   fill
                   sizes="(max-width: 1024px) 100vw, 480px"
-                  quality={65}
+                  quality={45}
                   loading="lazy"
                   className="object-cover"
                 />
@@ -235,7 +235,7 @@ export function HomeBelowFold() {
                       alt={`تجربة ${review.name}`}
                       fill
                       sizes="(max-width: 640px) 92vw, 30vw"
-                      quality={55}
+                      quality={40}
                       loading="lazy"
                       className="object-cover"
                     />
@@ -286,7 +286,7 @@ export function HomeBelowFold() {
                       alt={product.nameAr}
                       fill
                       sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 240px"
-                      quality={65}
+                      quality={45}
                       loading="lazy"
                       className="object-cover"
                     />
